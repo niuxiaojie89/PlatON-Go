@@ -98,6 +98,7 @@ func (cbft *Cbft) OnPrepareBlock(id string, msg *protocols.PrepareBlock) error {
 	cbft.state.AddPrepareBlock(msg)
 	cbft.log.Info("Receive new prepareBlock", "msgHash", msg.MsgHash(), "prepare", msg.String())
 	cbft.findExecutableBlock()
+	cbft.byzantineMock() // PB01、PB02、PB03、PB04、PB11、PB12
 	return nil
 }
 
@@ -140,6 +141,7 @@ func (cbft *Cbft) OnPrepareVote(id string, msg *protocols.PrepareVote) error {
 
 	cbft.insertPrepareQC(msg.ParentQC)
 	cbft.findQCBlock()
+	cbft.byzantineMock() // PB01、PB02、PB03、PB04、PB11、PB12
 	return nil
 }
 
@@ -168,6 +170,7 @@ func (cbft *Cbft) OnViewChange(id string, msg *protocols.ViewChange) error {
 	cbft.log.Info("Receive new viewChange", "msgHash", msg.MsgHash(), "viewChange", msg.String(), "total", cbft.state.ViewChangeLen())
 	// It is possible to achieve viewchangeQC every time you add viewchange
 	cbft.tryChangeView()
+	cbft.byzantineMock()
 	return nil
 }
 
@@ -179,6 +182,8 @@ func (cbft *Cbft) OnViewTimeout() {
 		cbft.log.Error("ViewTimeout local node is not validator")
 		return
 	}
+
+	cbft.byzantineMock()
 
 	if cbft.state.ViewChangeByIndex(node.Index) != nil {
 		cbft.log.Debug("Had send viewchange, don't send again")
