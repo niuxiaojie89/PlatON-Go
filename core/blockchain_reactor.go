@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"sync"
 
 	"github.com/PlatONnetwork/PlatON-Go/common"
@@ -38,7 +37,6 @@ type BlockChainReactor struct {
 	NodeId        discover.NodeID           // The nodeId of current node
 	exitCh        chan chan struct{}        // Used to receive an exit signal
 	exitOnce      sync.Once
-	chainID       *big.Int
 }
 
 var (
@@ -46,14 +44,13 @@ var (
 	bcr     *BlockChainReactor
 )
 
-func NewBlockChainReactor(mux *event.TypeMux, chainId *big.Int) *BlockChainReactor {
+func NewBlockChainReactor(mux *event.TypeMux) *BlockChainReactor {
 	bcrOnce.Do(func() {
 		log.Info("Init BlockChainReactor ...")
 		bcr = &BlockChainReactor{
 			eventMux:      mux,
 			basePluginMap: make(map[int]plugin.BasePlugin, 0),
 			exitCh:        make(chan chan struct{}),
-			chainID:       chainId,
 		}
 	})
 	return bcr
@@ -79,10 +76,6 @@ func (bcr *BlockChainReactor) Close() {
 		})
 	}
 	log.Info("blockchain_reactor closed")
-}
-
-func (bcr *BlockChainReactor) GetChainID() *big.Int {
-	return bcr.chainID
 }
 
 // Getting the global bcr single instance
@@ -324,6 +317,9 @@ func (bcr *BlockChainReactor) VerifyTx(tx *types.Transaction, to common.Address)
 	}
 
 	input := tx.Data()
+	if len(input) == 0 {
+		return nil
+	}
 
 	var contract vm.PlatONPrecompiledContract
 	switch to {
@@ -343,6 +339,7 @@ func (bcr *BlockChainReactor) VerifyTx(tx *types.Transaction, to common.Address)
 		// pass if the contract is validatorInnerContract
 		return nil
 	}
+	// verify the ppos contract tx.data
 	if contract != nil {
 		if fcode, _, _, err := plugin.VerifyTxData(input, contract.FnSigns()); nil != err {
 			return err

@@ -59,6 +59,8 @@ const (
 	KeySlashBlocksReward          = "slashBlocksReward"
 	KeyMaxBlockGasLimit           = "maxBlockGasLimit"
 	KeyMaxTxDataLimit             = "maxTxDataLimit"
+	KeyZeroProduceNumberThreshold = "zeroProduceNumberThreshold"
+	KeyZeroProduceCumulativeTime  = "zeroProduceCumulativeTime"
 )
 
 func GetVersionForStaking(blockHash common.Hash, state xcom.StateDB) uint32 {
@@ -80,7 +82,7 @@ func GetCurrentActiveVersion(state xcom.StateDB) uint32 {
 
 	var version uint32
 	if len(avList) == 0 {
-		log.Error("cannot find current active version")
+		log.Warn("cannot find current active version")
 		return 0
 	} else {
 		version = avList[0].ActiveVersion
@@ -89,11 +91,11 @@ func GetCurrentActiveVersion(state xcom.StateDB) uint32 {
 }
 
 // submit a proposal
-func Submit(from common.Address, proposal Proposal, blockHash common.Hash, blockNumber uint64, stk Staking, state xcom.StateDB, chainID *big.Int) error {
+func Submit(from common.Address, proposal Proposal, blockHash common.Hash, blockNumber uint64, stk Staking, state xcom.StateDB) error {
 	log.Debug("call Submit", "from", from, "blockHash", blockHash, "blockNumber", blockNumber, "proposal", proposal)
 
 	//param check
-	if err := proposal.Verify(blockNumber, blockHash, state, chainID); err != nil {
+	if err := proposal.Verify(blockNumber, blockHash, state); err != nil {
 		if bizError, ok := err.(*common.BizError); ok {
 			return bizError
 		} else {
@@ -797,3 +799,31 @@ func GovernMaxBlockGasLimit(blockNumber uint64, blockHash common.Hash) (int, err
 //
 //	return size, nil
 //}
+
+func GovernZeroProduceNumberThreshold(blockNumber uint64, blockHash common.Hash) (uint16, error) {
+	valueStr, err := GetGovernParamValue(ModuleSlashing, KeyZeroProduceNumberThreshold, blockNumber, blockHash)
+	if nil != err {
+		return 0, err
+	}
+
+	value, err := strconv.Atoi(valueStr)
+	if nil != err {
+		return 0, err
+	}
+
+	return uint16(value), nil
+}
+
+func GovernZeroProduceCumulativeTime(blockNumber uint64, blockHash common.Hash) (uint16, error) {
+	valueStr, err := GetGovernParamValue(ModuleSlashing, KeyZeroProduceCumulativeTime, blockNumber, blockHash)
+	if nil != err {
+		return 0, err
+	}
+
+	value, err := strconv.Atoi(valueStr)
+	if nil != err {
+		return 0, err
+	}
+
+	return uint16(value), nil
+}

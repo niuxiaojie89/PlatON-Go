@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/PlatONnetwork/PlatON-Go/params"
+
 	"github.com/PlatONnetwork/PlatON-Go/x/reward"
 
 	"github.com/PlatONnetwork/PlatON-Go/common/math"
@@ -2005,7 +2007,7 @@ func (sk *StakingPlugin) toSlash(state xcom.StateDB, blockNumber uint64, blockHa
 	// Balance that can only be effective for Slash
 	total := new(big.Int).Add(can.Released, can.RestrictingPlan)
 
-	if total.Cmp(slashItem.Amount) < 0 {
+	if slashItem.Amount != nil && total.Cmp(slashItem.Amount) < 0 {
 		log.Error("Warned to SlashCandidates: the candidate total staking amount is not enough",
 			"blockNumber", blockNumber, "blockHash", blockHash.Hex(), "nodeId", slashItem.NodeId.String(),
 			"candidate total amount", total, "slashing amount", slashItem.Amount)
@@ -2277,7 +2279,7 @@ func slashBalanceFn(slashAmount, canBalance *big.Int, isNotify bool,
 }
 
 func (sk *StakingPlugin) ProposalPassedNotify(blockHash common.Hash, blockNumber uint64, nodeIds []discover.NodeID,
-	programVersion uint32) error {
+	programVersion uint32, state xcom.StateDB) error {
 
 	log.Info("Call ProposalPassedNotify to promote candidate programVersion", "blockNumber", blockNumber,
 		"blockHash", blockHash.Hex(), "version", programVersion, "nodeIdQueueSize", len(nodeIds))
@@ -2297,6 +2299,13 @@ func (sk *StakingPlugin) ProposalPassedNotify(blockHash common.Hash, blockNumber
 			log.Error("Failed to ProposalPassedNotify: Promote candidate programVersion failed, the can is empty",
 				"blockNumber", blockNumber, "blockHash", blockHash.Hex(), "nodeId", nodeId.String())
 			continue
+		}
+		currentVersion := gov.GetCurrentActiveVersion(state)
+		if currentVersion == 0 || gov.GetCurrentActiveVersion(state) >= params.FORKVERSION_0_11_0 || programVersion == params.FORKVERSION_0_11_0 {
+			if can.IsInvalid() {
+				log.Warn(" can status is invalid,no need set can power", blockNumber, "blockHash", blockHash.Hex(), "nodeId", nodeId.String(), "status", can.Status)
+				continue
+			}
 		}
 
 		if err := sk.db.DelCanPowerStore(blockHash, can); nil != err {
@@ -2545,12 +2554,20 @@ func calcDelegateIncome(epoch uint64, del *staking.Delegation, per []*reward.Del
 	if uint64(del.DelegateEpoch) == epoch {
 		return nil
 	}
+	// When the settlement period when the first delegation is the same as the settlement period when the node is staking,
+	// and when the delegation is performed again in the next settlement cycle,
+	// the "per" value of the node is not available at this time, so you need to directly lazy
 	if len(per) == 0 {
 		lazyCalcDelegateAmount(epoch, del)
 		return nil
 	}
 
 	delegateRewardReceives := make([]reward.DelegateRewardReceipt, 0)
+	// When the settlement period at the first delegation is the same as the settlement period at the node's staking,
+	// , And when a second delegation is made after multiple billing cycles,
+	// For example: the node staking when the settlement period = 1, and the delegation is also in this settlement period. At this time,
+	// the node's "per" value only starts when the settlement period = 2; now it is the settlement period = 5, and this time it needs to be calculated When entrusting the income,
+	// you need to convert the entrustment from the hesitation period to the lock-in period before calculating.
 	if per[0].Epoch > uint64(del.DelegateEpoch) {
 		lazyCalcDelegateAmount(epoch, del)
 	}
