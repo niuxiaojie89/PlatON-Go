@@ -729,7 +729,7 @@ func (bc *BlockChain) Stop() {
 			}
 		}
 		for !bc.triegc.Empty() {
-			triedb.Dereference(bc.triegc.PopItem().(common.Hash))
+			triedb.Dereference(bc.triegc.PopItem().(common.Hash), bc.triegc.PopItem().(common.Hash))
 		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
@@ -967,12 +967,12 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 				log.Error("Commit to triedb error", "root", root)
 				return NonStatTy, err
 			}
-			triedb.Dereference(currentBlock.Root())
+			triedb.Dereference(currentBlock.Root(), root)
 			nodes, _ := triedb.Size()
 			oversize = nodes > limit
 		} else {
 			triedb.Reference(root, common.Hash{})
-			triedb.DereferenceDB(currentBlock.Root())
+			triedb.DereferenceDB(currentBlock.Root(), root)
 
 			if err := triedb.Commit(root, false, false); err != nil {
 				log.Error("Commit to triedb error", "root", root)
@@ -1035,7 +1035,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 					bc.triegc.Push(root, number)
 					break
 				}
-				triedb.Dereference(root.(common.Hash))
+				triedb.Dereference(root.(common.Hash), root.(common.Hash))
 			}
 		}
 	}

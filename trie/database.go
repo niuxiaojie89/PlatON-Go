@@ -502,10 +502,9 @@ func (db *Database) reference(child common.Hash, parent common.Hash) {
 	}
 }
 
-// Dereference removes an existing reference from a root node.
-func (db *Database) DereferenceDB(root common.Hash) {
+func (db *Database) DereferenceDB(child common.Hash, parent common.Hash) {
 	// Sanity check to ensure that the meta-root is not removed
-	if root == (common.Hash{}) {
+	if child == (common.Hash{}) || parent == (common.Hash{}) {
 		log.Error("Attempted to dereference the trie cache meta root")
 		return
 	}
@@ -520,7 +519,10 @@ func (db *Database) DereferenceDB(root common.Hash) {
 			db.cleans.Del(hash[:])
 		}
 	}
-	db.dereference(root, common.Hash{}, clearFn)
+	db.dereference(child, parent, clearFn)
+	if start.Add(400 * time.Millisecond).Before(time.Now()) {
+		log.Warn("DereferenceDB overtime", "root", child.String(), "duration", time.Since(start))
+	}
 
 	db.useless = append(db.useless, useless)
 	db.gcnodes += uint64(nodes - len(db.dirties))
@@ -534,6 +536,39 @@ func (db *Database) DereferenceDB(root common.Hash) {
 	log.Debug("Dereferenced trie from memory database", "nodes", nodes-len(db.dirties), "size", storage-db.dirtiesSize, "time", time.Since(start),
 		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
 }
+
+// Dereference removes an existing reference from a root node.
+//func (db *Database) DereferenceDB(root common.Hash) {
+//	// Sanity check to ensure that the meta-root is not removed
+//	if root == (common.Hash{}) {
+//		log.Error("Attempted to dereference the trie cache meta root")
+//		return
+//	}
+//	db.lock.Lock()
+//	defer db.lock.Unlock()
+//
+//	nodes, storage, start := len(db.dirties), db.dirtiesSize, time.Now()
+//	useless := make(map[string]struct{})
+//	clearFn := func(hash []byte) {
+//		useless[string(hash)] = struct{}{}
+//		if db.cleans != nil {
+//			db.cleans.Del(hash[:])
+//		}
+//	}
+//	db.dereference(root, common.Hash{}, clearFn)
+//
+//	db.useless = append(db.useless, useless)
+//	db.gcnodes += uint64(nodes - len(db.dirties))
+//	db.gcsize += storage - db.dirtiesSize
+//	db.gctime += time.Since(start)
+//
+//	memcacheGCTimeTimer.Update(time.Since(start))
+//	memcacheGCSizeMeter.Mark(int64(storage - db.dirtiesSize))
+//	memcacheGCNodesMeter.Mark(int64(nodes - len(db.dirties)))
+//
+//	log.Debug("Dereferenced trie from memory database", "nodes", nodes-len(db.dirties), "size", storage-db.dirtiesSize, "time", time.Since(start),
+//		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
+//}
 
 func (db *Database) uselessTotal() int {
 	db.lock.RLock()
@@ -590,9 +625,9 @@ func (db *Database) UselessGC(num int) {
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *Database) Dereference(root common.Hash) {
+func (db *Database) Dereference(child common.Hash, parent common.Hash) {
 	// Sanity check to ensure that the meta-root is not removed
-	if root == (common.Hash{}) {
+	if child == (common.Hash{}) || parent == (common.Hash{}) {
 		log.Error("Attempted to dereference the trie cache meta root")
 		return
 	}
@@ -606,7 +641,7 @@ func (db *Database) Dereference(root common.Hash) {
 	}
 
 	nodes, storage, start := len(db.dirties), db.dirtiesSize, time.Now()
-	db.dereference(root, common.Hash{}, cleanFn)
+	db.dereference(child, parent, cleanFn)
 
 	db.gcnodes += uint64(nodes - len(db.dirties))
 	db.gcsize += storage - db.dirtiesSize
@@ -625,32 +660,16 @@ func (db *Database) dereference(child common.Hash, parent common.Hash, clearFn f
 	if _, ok := db.freshNodes[child]; ok {
 		return
 	}
-	// Dereference the parent-child
-	node := db.dirties[parent]
 
-	if node.children != nil && node.children[child] > 0 {
-		node.children[child]--
-		if node.children[child] == 0 {
-			delete(node.children, child)
-			db.childrenSize -= (common.HashLength + 2) // uint16 counter
+	iter := newDiffIterator(db, child, parent)
+	for iter.Next() {
+		hash := iter.Hash()
+		node, ok := db.dirties[hash]
+		if !ok {
+			continue
 		}
-	}
-	// If the child does not exist, it's a previously committed node.
-	node, ok := db.dirties[child]
-	if !ok {
-		return
-	}
-	// If there are no more references to the child, delete it and cascade
-	if node.parents > 0 {
-		// This is a special cornercase where a node loaded from disk (i.e. not in the
-		// memcache any more) gets reinjected as a new node (short node split into full,
-		// then reverted into short), causing a cached node to have no parents. That is
-		// no problem in itself, but don't make maxint parents out of it.
-		node.parents--
-	}
-	if node.parents == 0 {
 		// Remove the node from the flush-list
-		switch child {
+		switch hash {
 		case db.oldest:
 			db.oldest = node.flushNext
 			db.dirties[node.flushNext].flushPrev = common.Hash{}
@@ -661,16 +680,12 @@ func (db *Database) dereference(child common.Hash, parent common.Hash, clearFn f
 			db.dirties[node.flushPrev].flushNext = node.flushNext
 			db.dirties[node.flushNext].flushPrev = node.flushPrev
 		}
-		// Dereference all children and delete the node
-		node.forChilds(func(hash common.Hash) {
-			db.dereference(hash, child, clearFn)
-		})
-		delete(db.dirties, child)
+		delete(db.dirties, hash)
 
 		if clearFn != nil {
 			// rawNode is contract code, only remove trie node
 			if _, ok := node.node.(rawNode); !ok {
-				clearFn(child.Bytes())
+				clearFn(hash.Bytes())
 			}
 		}
 		db.dirtiesSize -= common.StorageSize(common.HashLength + int(node.size))
