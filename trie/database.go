@@ -863,6 +863,8 @@ func (db *Database) Commit(node common.Hash, report bool, uncache bool) error {
 	// by only uncaching existing data when the database write finalizes.
 	start := time.Now()
 	batch := db.diskdb.NewBatch()
+	db.lock.Lock()
+	defer db.lock.Unlock()
 
 	// Move all of the accumulated preimages into a write batch
 	for hash, preimage := range db.preimages {
@@ -891,8 +893,8 @@ func (db *Database) Commit(node common.Hash, report bool, uncache bool) error {
 		return err
 	}
 	// Write successful, clear out the flushed data
-	db.lock.Lock()
-	defer db.lock.Unlock()
+	//db.lock.Lock()
+	//defer db.lock.Unlock()
 
 	batch.Replay(uncacher)
 	batch.Reset()
