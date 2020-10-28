@@ -101,7 +101,7 @@ func (s *StateSuite) TestDump(c *checker.C) {
 
 func (s *StateSuite) SetUpTest(c *checker.C) {
 	s.db = rawdb.NewMemoryDatabase()
-	s.state, _ = New(common.Hash{}, NewDatabase(s.db))
+	s.state, _ = New(common.Hash{}, testBlockNumber, NewDatabase(s.db))
 }
 
 func (s *StateSuite) TestNull(c *checker.C) {
@@ -151,7 +151,7 @@ func (s *StateSuite) TestSnapshotEmpty(c *checker.C) {
 // use testing instead of checker because checker does not support
 // printing/logging in tests (-check.vv does not work)
 func TestSnapshot2(t *testing.T) {
-	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	state, _ := New(common.Hash{}, testBlockNumber, NewDatabase(rawdb.NewMemoryDatabase()))
 
 	stateobjaddr0 := toAddr([]byte("so0"))
 	stateobjaddr1 := toAddr([]byte("so1"))
@@ -261,7 +261,7 @@ func TestEmptyByte(t *testing.T) {
 	defer os.Remove(tmpDir)
 
 	db, _ := leveldb.New(tmpDir, 0, 0, "")
-	state, _ := New(common.Hash{}, NewDatabase(db))
+	state, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	address := common.MustBech32ToAddress("atx1qqqqqqyzx9q8zzl38xgwg5qpxeexmz649nlcfu")
 	state.CreateAccount(address)
@@ -321,7 +321,7 @@ func TestForEachStorage(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "platon")
 	defer os.Remove(tmpDir)
 	db, _ := leveldb.New(tmpDir, 0, 0, "")
-	state, _ := New(common.Hash{}, NewDatabase(db))
+	state, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	address := common.MustBech32ToAddress("atx1qqqqqqyzx9q8zzl38xgwg5qpxeexmz649nlcfu")
 	state.CreateAccount(address)
@@ -352,7 +352,7 @@ func TestMigrateStorage(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "platon")
 	defer os.Remove(tmpDir)
 	db, _ := leveldb.New(tmpDir, 0, 0, "")
-	state, _ := New(common.Hash{}, NewDatabase(db))
+	state, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	from := common.MustBech32ToAddress("atx1qqqqqqyzx9q8zzl38xgwg5qpxeexmz649nlcfu")
 	state.CreateAccount(from)

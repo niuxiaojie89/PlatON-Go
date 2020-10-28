@@ -42,6 +42,8 @@ import (
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
+var testBlockNumber = uint64(1)
+
 func randString(n int) string {
 	b := make([]rune, n)
 	for i := range b {
@@ -57,7 +59,7 @@ func TestUpdateLeaks(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 	//dir, _ := ioutil.TempDir("", "eth-core-bench")
 	//ethdb,err:= ethdb.NewLDBDatabase(dir,128,128)
-	state, _ := New(common.Hash{}, NewDatabase(db))
+	state, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	// Update it with some accounts
 	for i := byte(0); i < 255; i++ {
@@ -82,11 +84,11 @@ func TestUpdateLeaks(t *testing.T) {
 
 func TestClearParentReference(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
-	state, _ := New(common.Hash{}, NewDatabase(db))
+	state, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 	count := 10000
 
 	for i := 0; i < count; i++ {
-		st := state.NewStateDB()
+		st := state.NewStateDB(testBlockNumber)
 		if i%2 == 0 {
 			go func() {
 				st.ClearParentReference()
@@ -113,8 +115,8 @@ func TestNewStateDBAndCopy(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 	dbc := rawdb.NewMemoryDatabase()
 
-	s1, _ := New(common.Hash{}, NewDatabase(db))
-	s1c, _ := New(common.Hash{}, NewDatabase(dbc))
+	s1, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
+	s1c, _ := New(common.Hash{}, testBlockNumber, NewDatabase(dbc))
 
 	modify := func(s1 *StateDB, s2 *StateDB, addr common.Address, i int) {
 		s1.AddBalance(addr, big.NewInt(int64(i)))
@@ -146,7 +148,7 @@ func TestNewStateDBAndCopy(t *testing.T) {
 		modify(s1, s1c, common.Address{byte(i)}, i)
 	}
 
-	st := s1.NewStateDB()
+	st := s1.NewStateDB(testBlockNumber)
 	for addr, storage := range storages {
 		for k, v := range storage {
 			value := st.GetState(addr, []byte(k))
@@ -168,8 +170,8 @@ func TestNewStateDBAndCopy(t *testing.T) {
 	assert.Nil(t, s1c.db.TrieDB().Commit(s1c.Root(), false, true))
 
 	// test new statedb
-	st2 := s1.NewStateDB()
-	s1db, _ := New(s1.Root(), NewDatabase(dbc))
+	st2 := s1.NewStateDB(testBlockNumber)
+	s1db, _ := New(s1.Root(), testBlockNumber, NewDatabase(dbc))
 
 	st2.clearParentRef()
 	for addr, storage := range storages {
@@ -193,8 +195,8 @@ func TestNewStateDBAndCopy(t *testing.T) {
 	it.Release()
 
 	// s3->s2->s1, s1c is copy of s1. insert random kv, db is the same as dbc
-	s2 := s1.NewStateDB()
-	s3 := s2.NewStateDB()
+	s2 := s1.NewStateDB(testBlockNumber)
+	s3 := s2.NewStateDB(testBlockNumber)
 
 	assert.Len(t, s1.clearReferenceFunc, 3)
 	assert.Len(t, s2.clearReferenceFunc, 1)
@@ -270,7 +272,7 @@ func TestStateStorageValueCommit(t *testing.T) {
 	storages := make(map[common.Address]map[string]string)
 	db := rawdb.NewMemoryDatabase()
 
-	s1, _ := New(common.Hash{}, NewDatabase(db))
+	s1, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	modify := func(s1 *StateDB, addr common.Address, i int) {
 		s1.AddBalance(addr, big.NewInt(int64(i)))
@@ -301,7 +303,7 @@ func TestStateStorageValueCommit(t *testing.T) {
 	if err := s1.db.TrieDB().Commit(root, true, true); err != nil {
 		t.Fatal(err)
 	}
-	s2, err := New(root, NewDatabase(db))
+	s2, err := New(root, testBlockNumber, NewDatabase(db))
 	for addr, storage := range storages {
 		for key, value := range storage {
 			exp := s2.GetState(addr, []byte(key))
@@ -313,7 +315,7 @@ func TestStateStorageValueCommit(t *testing.T) {
 func TestStateStorageValueDelete(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 
-	s1, _ := New(common.Hash{}, NewDatabase(db))
+	s1, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	key1, value1, key2, value2 := []byte("key1"), []byte("value1"), []byte("key2"), []byte("value2")
 
@@ -333,7 +335,7 @@ func TestStateStorageValueDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s2, err := New(root, NewDatabase(db))
+	s2, err := New(root, testBlockNumber, NewDatabase(db))
 	exp := s2.GetState(addr, key1)
 	assert.Equal(t, exp, value1)
 
@@ -345,7 +347,7 @@ func TestStateStorageValueDelete(t *testing.T) {
 func TestStateStorageRevert(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 
-	s1, _ := New(common.Hash{}, NewDatabase(db))
+	s1, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 	s1.Snapshot()
 	key1, value1, value2 := []byte("key1"), []byte("value1"), []byte("value2")
 
@@ -381,7 +383,7 @@ func TestStateStorageRevert(t *testing.T) {
 func TestStateStorageValueUpdate(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 
-	s1, _ := New(common.Hash{}, NewDatabase(db))
+	s1, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 	s1.Snapshot()
 	key1, value1, value2 := []byte("key1"), []byte("value1"), []byte("value2")
 
@@ -400,8 +402,8 @@ func TestIntermediateLeaks(t *testing.T) {
 	// Create two state databases, one transitioning to the final state, the other final from the beginning
 	transDb := rawdb.NewMemoryDatabase()
 	finalDb := rawdb.NewMemoryDatabase()
-	transState, _ := New(common.Hash{}, NewDatabase(transDb))
-	finalState, _ := New(common.Hash{}, NewDatabase(finalDb))
+	transState, _ := New(common.Hash{}, testBlockNumber, NewDatabase(transDb))
+	finalState, _ := New(common.Hash{}, testBlockNumber, NewDatabase(finalDb))
 
 	modify := func(state *StateDB, addr common.Address, i, tweak byte) {
 		state.SetBalance(addr, big.NewInt(int64(11*i)+int64(tweak)))
@@ -458,7 +460,7 @@ func TestIntermediateLeaks(t *testing.T) {
 // https://github.com/ethereum/go-ethereum/pull/15549.
 func TestCopy(t *testing.T) {
 	// Create a random state test to copy and modify "independently"
-	orig, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	orig, _ := New(common.Hash{}, testBlockNumber, NewDatabase(rawdb.NewMemoryDatabase()))
 
 	for i := byte(0); i < 255; i++ {
 		obj := orig.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
@@ -669,7 +671,7 @@ func (test *snapshotTest) String() string {
 func (test *snapshotTest) run() bool {
 	// Run all actions and create snapshots.
 	var (
-		state, _     = New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+		state, _     = New(common.Hash{}, testBlockNumber, NewDatabase(rawdb.NewMemoryDatabase()))
 		snapshotRevs = make([]int, len(test.snapshots))
 		sindex       = 0
 	)
@@ -683,7 +685,7 @@ func (test *snapshotTest) run() bool {
 	// Revert all snapshots in reverse order. Each revert must yield a state
 	// that is equivalent to fresh state with all actions up the snapshot applied.
 	for sindex--; sindex >= 0; sindex-- {
-		checkstate, _ := New(common.Hash{}, state.Database())
+		checkstate, _ := New(common.Hash{}, testBlockNumber, state.Database())
 		for _, action := range test.actions[:test.snapshots[sindex]] {
 			action.fn(action, checkstate)
 		}
@@ -762,7 +764,7 @@ func (s *StateSuite) TestTouchDelete(c *check.C) {
 // TestCopyOfCopy tests that modified objects are carried over to the copy, and the copy of the copy.
 // See https://github.com/ethereum/go-ethereum/pull/15225#issuecomment-380191512
 func TestCopyOfCopy(t *testing.T) {
-	sdb, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
+	sdb, _ := New(common.Hash{}, testBlockNumber, NewDatabase(rawdb.NewMemoryDatabase()))
 	addr := common.HexToAddress("aaaa")
 	sdb.SetBalance(addr, big.NewInt(42))
 
@@ -779,28 +781,28 @@ func TestGetAfterDelete(t *testing.T) {
 
 	addr := common.BigToAddress(big.NewInt(1))
 
-	s1, _ := New(common.Hash{}, NewDatabase(db))
+	s1, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 	s1.SetNonce(addr, 1)
 	s1.SetState(addr, []byte("test"), []byte("value"))
 	_, err := s1.Commit(true)
 	assert.Nil(t, err)
 
-	s2 := s1.NewStateDB()
+	s2 := s1.NewStateDB(testBlockNumber)
 	s2.SetState(addr, []byte("test"), []byte{})
 	_, err = s2.Commit(true)
 	assert.Nil(t, err)
 
-	s3 := s2.NewStateDB()
+	s3 := s2.NewStateDB(testBlockNumber)
 	buf := s3.GetState(addr, []byte("test"))
 	s3.Commit(true)
 	assert.True(t, len(buf) == 0, "Expect value is not nil")
 
-	s4 := s3.NewStateDB()
+	s4 := s3.NewStateDB(testBlockNumber)
 	s4.SetState(addr, []byte("test"), []byte("value"))
 	s4.SetState(addr, []byte("test1"), []byte("value1"))
 	s4.Commit(true)
 
-	s5 := s4.NewStateDB()
+	s5 := s4.NewStateDB(testBlockNumber)
 	buf = s5.GetState(addr, []byte("test"))
 	buf1 := s5.GetState(addr, []byte("test1"))
 	assert.Equal(t, buf, []byte("value"))

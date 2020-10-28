@@ -150,6 +150,10 @@ type BlockChain struct {
 	shouldPreserve func(*types.Block) bool // Function used to determine whether should preserve the given block.
 
 	cleaner *Cleaner
+
+	// for Dereference node task
+	dereferenceDBCh chan common.Hash
+	dereferenceCh   chan common.Hash
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -177,20 +181,22 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	badBlocks, _ := lru.New(cacheConfig.BadBlockLimit)
 
 	bc := &BlockChain{
-		chainConfig:    chainConfig,
-		cacheConfig:    cacheConfig,
-		db:             db,
-		triegc:         prque.New(nil),
-		stateCache:     state.NewDatabaseWithCache(db, cacheConfig.TrieDBCache),
-		quit:           make(chan struct{}),
-		shouldPreserve: shouldPreserve,
-		bodyCache:      bodyCache,
-		bodyRLPCache:   bodyRLPCache,
-		blockCache:     blockCache,
-		futureBlocks:   futureBlocks,
-		engine:         engine,
-		vmConfig:       vmConfig,
-		badBlocks:      badBlocks,
+		chainConfig:     chainConfig,
+		cacheConfig:     cacheConfig,
+		db:              db,
+		triegc:          prque.New(nil),
+		stateCache:      state.NewDatabaseWithCache(db, cacheConfig.TrieDBCache),
+		quit:            make(chan struct{}),
+		shouldPreserve:  shouldPreserve,
+		bodyCache:       bodyCache,
+		bodyRLPCache:    bodyRLPCache,
+		blockCache:      blockCache,
+		futureBlocks:    futureBlocks,
+		engine:          engine,
+		vmConfig:        vmConfig,
+		badBlocks:       badBlocks,
+		dereferenceDBCh: make(chan common.Hash, 10000),
+		dereferenceCh:   make(chan common.Hash, 10000),
 	}
 
 	bc.SetValidator(NewBlockValidator(chainConfig, bc, engine))
@@ -229,6 +235,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 	// Take ownership of this particular state
 	go bc.update()
+	go bc.Dereference()
 	return bc, nil
 }
 
@@ -264,7 +271,7 @@ func (bc *BlockChain) loadLastState() error {
 		//return bc.Reset()
 	}
 	// Make sure the state associated with the block is available
-	if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
+	if _, err := state.New(currentBlock.Root(), currentBlock.NumberU64(), bc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
 		log.Warn("Head state missing, repairing chain", "number", currentBlock.Number(), "hash", currentBlock.Hash(), "err", err)
 		if err := bc.repair(&currentBlock); err != nil {
@@ -329,7 +336,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Number.Uint64()))
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
+		if _, err := state.New(currentBlock.Root(), currentBlock.NumberU64(), bc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)
 		}
@@ -424,12 +431,12 @@ func (bc *BlockChain) Processor() Processor {
 
 // State returns a new mutable state based on the current HEAD block.
 func (bc *BlockChain) State() (*state.StateDB, error) {
-	return bc.StateAt(bc.CurrentBlock().Root())
+	return bc.StateAt(bc.CurrentBlock().Root(), bc.CurrentBlock().NumberU64())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(root, bc.stateCache)
+func (bc *BlockChain) StateAt(root common.Hash, blockNumber uint64) (*state.StateDB, error) {
+	return state.New(root, blockNumber, bc.stateCache)
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
@@ -474,7 +481,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New((*head).Root(), bc.stateCache); err == nil {
+		if _, err := state.New((*head).Root(), (*head).NumberU64(), bc.stateCache); err == nil {
 			log.Info("Rewound blockchain to past state", "number", (*head).Number(), "hash", (*head).Hash())
 			return nil
 		}
@@ -929,6 +936,23 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) (err error) {
 	return nil
 }
 
+func (bc *BlockChain) Dereference() {
+	triedb := bc.stateCache.TrieDB()
+	for {
+		select {
+		case root := <-bc.dereferenceCh:
+			triedb.Dereference(root)
+		case root := <-bc.dereferenceDBCh:
+			triedb.DereferenceDB(root)
+			if triedb.UselessSize() > bc.cacheConfig.DBGCBlock {
+				triedb.UselessGC(1)
+			}
+		case <-bc.quit:
+			return
+		}
+	}
+}
+
 // WriteBlockWithState writes the block and all associated state to the database.
 func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) (status WriteStatus, err error) {
 	bc.wg.Add(1)
@@ -967,21 +991,23 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 				log.Error("Commit to triedb error", "root", root)
 				return NonStatTy, err
 			}
-			triedb.Dereference(currentBlock.Root())
+			//triedb.Dereference(currentBlock.Root())
+			bc.dereferenceCh <- currentBlock.Root()
 			nodes, _ := triedb.Size()
 			oversize = nodes > limit
 		} else {
 			triedb.ReferenceVersion(root)
-			triedb.DereferenceDB(currentBlock.Root())
+			//triedb.DereferenceDB(currentBlock.Root())
+			bc.dereferenceDBCh <- currentBlock.Root()
 
 			if err := triedb.Commit(root, false, false); err != nil {
 				log.Error("Commit to triedb error", "root", root)
 				return NonStatTy, err
 			}
 
-			if triedb.UselessSize() > bc.cacheConfig.DBGCBlock {
-				triedb.UselessGC(1)
-			}
+			//if triedb.UselessSize() > bc.cacheConfig.DBGCBlock {
+			//	triedb.UselessGC(1)
+			//}
 
 			nodes, _ := triedb.Size()
 			oversize = nodes > limit

@@ -155,7 +155,21 @@ func initTx(fromAccountList []*account, contractAccountList []*account) types.Tr
 
 func initChain(fromAccountList []*account, toAccountList []*account, contractAccountList []*account) (*BlockChain, *state2.StateDB, *types.Header) {
 	db := rawdb.NewMemoryDatabase()
-	stateDb, _ := state2.New(common.Hash{}, state2.NewDatabase(db))
+	gspec := &Genesis{
+		Config: chainConfig,
+		//Alloc:  GenesisAlloc{address: {Balance: funds}},
+	}
+	gspec.MustCommit(db)
+
+	vmConfig := cvm.Config{
+		ConsoleOutput: true,
+		WasmType:      cvm.Wagon,
+	}
+
+	blockchain, _ := NewBlockChain(db, nil, gspec.Config, consensus.NewFaker(), vmConfig, nil)
+	parent := blockchain.Genesis()
+
+	stateDb, _ := state2.New(common.Hash{}, parent.NumberU64()+1, state2.NewDatabase(db))
 
 	nodePriKey := crypto.HexMustToECDSA("1191dc5317d5930beb77848f416ee023921fa4452f4d783384f35352409c0ad0")
 	nodeID := crypto.PubkeyToAddress(nodePriKey.PublicKey)
@@ -171,20 +185,6 @@ func initChain(fromAccountList []*account, toAccountList []*account, contractAcc
 
 	stateDb.Finalise(false)
 
-	gspec := &Genesis{
-		Config: chainConfig,
-		//Alloc:  GenesisAlloc{address: {Balance: funds}},
-	}
-	gspec.MustCommit(db)
-
-	vmConfig := cvm.Config{
-		ConsoleOutput: true,
-		WasmType:      cvm.Wagon,
-	}
-
-	blockchain, _ := NewBlockChain(db, nil, gspec.Config, consensus.NewFaker(), vmConfig, nil)
-
-	parent := blockchain.Genesis()
 	_, header := NewBlock(parent.Hash(), parent.NumberU64()+1)
 	header.Coinbase = nodeID
 	return blockchain, stateDb, header

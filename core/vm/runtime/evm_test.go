@@ -13,6 +13,8 @@ import (
 	"github.com/PlatONnetwork/PlatON-Go/core/vm"
 )
 
+var testBlockNumber = uint64(1)
+
 type account struct{}
 
 func (account) SubBalance(amount *big.Int)                                 {}
@@ -44,7 +46,7 @@ func TestEVMCallError(t *testing.T) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+		cfg.State, _ = state.New(common.Hash{}, testBlockNumber, state.NewDatabase(rawdb.NewMemoryDatabase()))
 	}
 	var (
 		vmenv  = NewEVMWithCtx(cfg)
@@ -63,7 +65,7 @@ func baseConfig(cfg *Config) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+		cfg.State, _ = state.New(common.Hash{}, testBlockNumber, state.NewDatabase(rawdb.NewMemoryDatabase()))
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
@@ -173,7 +175,7 @@ func TestCreate(t *testing.T) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+		cfg.State, _ = state.New(common.Hash{}, testBlockNumber, state.NewDatabase(rawdb.NewMemoryDatabase()))
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
@@ -279,7 +281,7 @@ func TestOthers(t *testing.T) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
+		cfg.State, _ = state.New(common.Hash{}, testBlockNumber, state.NewDatabase(rawdb.NewMemoryDatabase()))
 	}
 	var (
 		vmenv = NewEVMWithCtx(cfg)

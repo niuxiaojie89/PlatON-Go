@@ -597,8 +597,8 @@ func (db *Database) ResetUseless() {
 }
 
 func (db *Database) UselessGC(num int) {
-	db.lock.Lock()
-	defer db.lock.Unlock()
+	//db.lock.Lock()
+	//defer db.lock.Unlock()
 	var (
 		start = time.Now()
 		total = 0
@@ -612,9 +612,10 @@ func (db *Database) UselessGC(num int) {
 		}
 
 		for k, _ := range m {
-			if db.dirties[common.BytesToHash([]byte(k))] == nil {
-				batch.Delete([]byte(k))
-			}
+			//if db.dirties[common.BytesToHash([]byte(k))] == nil {
+			//	batch.Delete([]byte(k))
+			//}
+			batch.Delete([]byte(k))
 			if batch.ValueSize() > ethdb.IdealBatchSize {
 				batch.Write()
 				batch.Reset()

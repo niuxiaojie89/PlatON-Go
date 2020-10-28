@@ -757,7 +757,7 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	if _, ok := w.engine.(consensus.Bft); ok {
 		state, err = w.blockChainCache.MakeStateDB(parent)
 	} else {
-		state, err = w.chain.StateAt(parent.Root())
+		state, err = w.chain.StateAt(parent.Root(), parent.NumberU64()+1)
 	}
 	if err != nil {
 		return err

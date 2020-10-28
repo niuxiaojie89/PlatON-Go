@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"encoding/binary"
 	"github.com/PlatONnetwork/PlatON-Go/common"
 	"testing"
 )
@@ -27,7 +28,9 @@ func TestStateObjectValuePrefix(t *testing.T) {
 		StorageKeyPrefix: addr.Bytes(),
 	})
 
-	dbValue := x2.getPrefixValue(key, value)
+	pack := make([]byte, 8)
+	binary.BigEndian.PutUint64(pack[0:8], uint64(999999))
+	dbValue := x2.getPrefixValue(key, pack, value)
 	if !bytes.Equal(value, x2.removePrefixValue(dbValue)) {
 		t.Fatal("prefix error")
 	}

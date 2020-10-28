@@ -18,6 +18,7 @@
 package state
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -96,10 +97,13 @@ type StateDB struct {
 
 	// The index in clearReferenceFunc of parent StateDB
 	referenceFuncIndex int
+
+	// The blockNumber corresponding to statedb,Applied in StorageKeyPrefix
+	blockNumber uint64
 }
 
 // Create a new state from a given trie.
-func New(root common.Hash, db Database) (*StateDB, error) {
+func New(root common.Hash, blockNumber uint64, db Database) (*StateDB, error) {
 	tr, err := db.OpenTrie(root)
 	if err != nil {
 		return nil, err
@@ -113,12 +117,13 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		preimages:          make(map[common.Hash][]byte),
 		journal:            newJournal(),
 		clearReferenceFunc: make([]func(), 0),
+		blockNumber:        blockNumber,
 	}
 	return state, nil
 }
 
 // New StateDB based on the parent StateDB
-func (self *StateDB) NewStateDB() *StateDB {
+func (self *StateDB) NewStateDB(blockNumber uint64) *StateDB {
 	stateDB := &StateDB{
 		db:                 self.db,
 		trie:               self.db.NewTrie(self.trie),
@@ -129,6 +134,7 @@ func (self *StateDB) NewStateDB() *StateDB {
 		journal:            newJournal(),
 		parent:             self,
 		clearReferenceFunc: make([]func(), 0),
+		blockNumber:        blockNumber,
 	}
 
 	index := self.AddReferenceFunc(stateDB.clearParentRef)
@@ -448,7 +454,9 @@ func (self *StateDB) SetState(address common.Address, key, value []byte) {
 
 	if stateObject != nil {
 		//prefixKey := stateObject.getPrefixKey(key)
-		stateObject.SetState(self.db, key, stateObject.getPrefixValue(key, value))
+		pack := make([]byte, 8)
+		binary.BigEndian.PutUint64(pack[0:8], self.blockNumber)
+		stateObject.SetState(self.db, key, stateObject.getPrefixValue(key, pack, value))
 	}
 	self.lock.Unlock()
 }
@@ -803,6 +811,7 @@ func (self *StateDB) Copy() *StateDB {
 		preimages:          make(map[common.Hash][]byte),
 		journal:            newJournal(),
 		clearReferenceFunc: make([]func(), 0),
+		blockNumber:        self.blockNumber,
 	}
 
 	// Copy the dirty states, logs, and preimages

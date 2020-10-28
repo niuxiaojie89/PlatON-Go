@@ -124,7 +124,7 @@ func (bcc *BlockChainCache) GetState(header *types.Header) (*state.StateDB, erro
 	if err == nil {
 		return state, nil
 	} else {
-		return bcc.StateAt(header.Root)
+		return bcc.StateAt(header.Root, header.Number.Uint64())
 	}
 }
 
@@ -217,13 +217,13 @@ func (bcc *BlockChainCache) MakeStateDBByHeader(header *types.Header) (*state.St
 	// Read and copy the stateDB instance in the cache
 	sealHash, number, root := header.SealHash(), header.Number.Uint64(), header.Root
 	if state := bcc.ReadOnlyStateDB(sealHash); state != nil {
-		statedb := state.NewStateDB()
+		statedb := state.NewStateDB(number + 1)
 		if number > 1 && !statedb.HadParent() {
 			panic(fmt.Sprintf("parent is nil:%d", number))
 		}
 
 		return statedb, nil
-	} else if state, err := bcc.StateAt(root); err == nil && state != nil {
+	} else if state, err := bcc.StateAt(root, number+1); err == nil && state != nil {
 		// Create a StateDB instance from the blockchain based on stateRoot
 		return state, nil
 	}

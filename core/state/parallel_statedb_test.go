@@ -23,7 +23,7 @@ var (
 
 func TestParallelStateDB_justCreateObject(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
-	statedb, _ := New(common.Hash{}, NewDatabase(db))
+	statedb, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	statedb.justCreateObject(accountAddr)
 
@@ -34,7 +34,7 @@ func TestParallelStateDB_justCreateObject(t *testing.T) {
 
 func TestParallelStateDB_GetOrNewParallelStateObject(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
-	statedb, _ := New(common.Hash{}, NewDatabase(db))
+	statedb, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 	statedb.GetOrNewParallelStateObject(accountAddr)
 	if _, ok := statedb.stateObjects[accountAddr]; ok {
 		t.Fatalf("The state object just created cannot exist in the cache")
@@ -43,7 +43,7 @@ func TestParallelStateDB_GetOrNewParallelStateObject(t *testing.T) {
 
 func TestParallelStateDB_justGetStateObject(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
-	statedb, _ := New(common.Hash{}, NewDatabase(db))
+	statedb, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 	stateObj := statedb.justGetStateObject(accountAddr)
 	assert.Nil(t, stateObj)
 	if _, ok := statedb.stateObjects[accountAddr]; ok {
@@ -53,7 +53,7 @@ func TestParallelStateDB_justGetStateObject(t *testing.T) {
 
 func TestParallelStateDB_justGetStateObjectCache(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
-	statedb, _ := New(common.Hash{}, NewDatabase(db))
+	statedb, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 	stateObj := statedb.justGetStateObjectCache(accountAddr)
 	assert.Nil(t, stateObj)
 	if _, ok := statedb.stateObjects[accountAddr]; ok {
@@ -64,7 +64,7 @@ func TestParallelStateDB_justGetStateObjectCache(t *testing.T) {
 func TestParallelStateDB_rlp(t *testing.T) {
 
 	db := rawdb.NewMemoryDatabase()
-	statedb, _ := New(common.Hash{}, NewDatabase(db))
+	statedb, _ := New(common.Hash{}, testBlockNumber, NewDatabase(db))
 
 	var count = 6000
 	var objList = make([]*ParallelStateObject, count)

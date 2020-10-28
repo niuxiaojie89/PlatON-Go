@@ -115,11 +115,11 @@ func TestCleaner(t *testing.T) {
 	assert.True(t, cleaner.lastNumber == 100)
 
 	block := blockchain.GetBlockByNumber(188)
-	_, err = blockchain.StateAt(block.Root())
+	_, err = blockchain.StateAt(block.Root(), block.NumberU64())
 	assert.Nil(t, err)
 
 	block = blockchain.GetBlockByNumber(200)
-	statedb, _ := blockchain.StateAt(block.Root())
+	statedb, _ := blockchain.StateAt(block.Root(), block.NumberU64())
 	assert.NotNil(t, statedb)
 	buf := statedb.GetState(testAddress, []byte(fmt.Sprintf("abc_%d", block.NumberU64())))
 	assert.Equal(t, string(buf), fmt.Sprintf("abccccccc_%d", block.NumberU64()))

@@ -250,7 +250,7 @@ func (ia *InnerAgency) GetValidator(blockNumber uint64) (v *cbfttypes.Validators
 		log.Error("Get the block fail, use default validators", "number", vdsCftNum)
 		return &defaultValidators, nil
 	}
-	state, err := ia.blockchain.StateAt(block.Root())
+	state, err := ia.blockchain.StateAt(block.Root(), block.NumberU64())
 	if err != nil {
 		log.Error("Get the state fail, use default validators", "number", block.Number(), "hash", block.Hash(), "error", err)
 		return &defaultValidators, nil

@@ -197,7 +197,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		return nil, nil
 	}
 	for i := 0; i < n; i++ {
-		statedb, err := state.New(parent.Root(), state.NewDatabase(db))
+		statedb, err := state.New(parent.Root(), parent.NumberU64(), state.NewDatabase(db))
 		if err != nil {
 			panic(err)
 		}
@@ -248,7 +248,7 @@ func GenerateBlockChain2(config *params.ChainConfig, parent *types.Block, engine
 		return nil, nil
 	}
 	for i := 0; i < n; i++ {
-		statedb, err := blockchain.StateAt(parent.Root())
+		statedb, err := blockchain.StateAt(parent.Root(), parent.NumberU64())
 		if err != nil {
 			panic(err)
 		}
@@ -302,7 +302,7 @@ func GenerateBlockChain(config *params.ChainConfig, parent *types.Block, engine 
 		return nil, nil
 	}
 	for i := 0; i < n; i++ {
-		statedb, err := blockchain.StateAt(parent.Root())
+		statedb, err := blockchain.StateAt(parent.Root(), parent.NumberU64())
 		if err != nil {
 			panic(err)
 		}
