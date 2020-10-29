@@ -593,6 +593,10 @@ func (db *Database) ResetUseless() {
 func (db *Database) UselessGC(num int) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
+
+	if db.useless == nil {
+		return
+	}
 	var (
 		start = time.Now()
 		total = 0
@@ -606,9 +610,10 @@ func (db *Database) UselessGC(num int) {
 		}
 
 		for k, _ := range m {
-			if db.dirties[common.BytesToHash([]byte(k))] == nil {
-				batch.Delete([]byte(k))
-			}
+			//if db.dirties[common.BytesToHash([]byte(k))] == nil {
+			//	batch.Delete([]byte(k))
+			//}
+			batch.Delete([]byte(k))
 			if batch.ValueSize() > ethdb.IdealBatchSize {
 				batch.Write()
 				batch.Reset()
@@ -696,7 +701,10 @@ func (db *Database) dereference(child common.Hash, parent common.Hash, clearFn f
 }
 
 func (db *Database) CapNode(limit common.StorageSize) {
-	db.lock.RLock()
+	//db.lock.RLock()
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
 	nodes, storage, start := len(db.dirties), db.dirtiesSize, time.Now()
 	size := db.dirtiesSize + common.StorageSize((len(db.dirties)-1)*2*common.HashLength)
 
@@ -711,10 +719,10 @@ func (db *Database) CapNode(limit common.StorageSize) {
 		size -= common.StorageSize(3*common.HashLength + int(node.size))
 		oldest = node.flushNext
 	}
-	db.lock.RUnlock()
+	//db.lock.RUnlock()
 
-	db.lock.Lock()
-	defer db.lock.Unlock()
+	//db.lock.Lock()
+	//defer db.lock.Unlock()
 	for db.oldest != oldest {
 		node := db.dirties[db.oldest]
 		delete(db.dirties, db.oldest)
@@ -845,6 +853,9 @@ func (db *Database) Commit(node common.Hash, report bool, uncache bool) error {
 	start := time.Now()
 	batch := db.diskdb.NewBatch()
 
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
 	// Move all of the accumulated preimages into a write batch
 	for hash, preimage := range db.preimages {
 		if err := batch.Put(db.secureKey(hash[:]), preimage); err != nil {
@@ -872,8 +883,8 @@ func (db *Database) Commit(node common.Hash, report bool, uncache bool) error {
 		return err
 	}
 	// Write successful, clear out the flushed data
-	db.lock.Lock()
-	defer db.lock.Unlock()
+	//db.lock.Lock()
+	//defer db.lock.Unlock()
 
 	batch.Replay(uncacher)
 	batch.Reset()
@@ -929,10 +940,10 @@ func (db *Database) commit(hash common.Hash, batch ethdb.Batch, uncacher *cleane
 		if err := batch.Write(); err != nil {
 			return err
 		}
-		db.lock.Lock()
+		//db.lock.Lock()
 		batch.Replay(uncacher)
 		batch.Reset()
-		db.lock.Unlock()
+		//db.lock.Unlock()
 	}
 	return nil
 }

@@ -87,6 +87,11 @@ type MiningConfig struct {
 	DefaultCommitRatio     float64
 }
 
+type gcEntry struct {
+	lastRoot common.Hash
+	newRoot  common.Hash
+}
+
 // BlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
 //
@@ -150,6 +155,10 @@ type BlockChain struct {
 	shouldPreserve func(*types.Block) bool // Function used to determine whether should preserve the given block.
 
 	cleaner *Cleaner
+
+	// for gc node task
+	dereferenceDBCh chan gcEntry
+	dereferenceCh   chan gcEntry
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -177,20 +186,22 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	badBlocks, _ := lru.New(cacheConfig.BadBlockLimit)
 
 	bc := &BlockChain{
-		chainConfig:    chainConfig,
-		cacheConfig:    cacheConfig,
-		db:             db,
-		triegc:         prque.New(nil),
-		stateCache:     state.NewDatabaseWithCache(db, cacheConfig.TrieDBCache),
-		quit:           make(chan struct{}),
-		shouldPreserve: shouldPreserve,
-		bodyCache:      bodyCache,
-		bodyRLPCache:   bodyRLPCache,
-		blockCache:     blockCache,
-		futureBlocks:   futureBlocks,
-		engine:         engine,
-		vmConfig:       vmConfig,
-		badBlocks:      badBlocks,
+		chainConfig:     chainConfig,
+		cacheConfig:     cacheConfig,
+		db:              db,
+		triegc:          prque.New(nil),
+		stateCache:      state.NewDatabaseWithCache(db, cacheConfig.TrieDBCache),
+		quit:            make(chan struct{}),
+		shouldPreserve:  shouldPreserve,
+		bodyCache:       bodyCache,
+		bodyRLPCache:    bodyRLPCache,
+		blockCache:      blockCache,
+		futureBlocks:    futureBlocks,
+		engine:          engine,
+		vmConfig:        vmConfig,
+		badBlocks:       badBlocks,
+		dereferenceDBCh: make(chan gcEntry, 10000),
+		dereferenceCh:   make(chan gcEntry, 10000),
 	}
 
 	bc.SetValidator(NewBlockValidator(chainConfig, bc, engine))
@@ -229,6 +240,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 
 	// Take ownership of this particular state
 	go bc.update()
+	go bc.gcnodes()
 	return bc, nil
 }
 
@@ -929,6 +941,39 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) (err error) {
 	return nil
 }
 
+func (bc *BlockChain) gcnodes() {
+	triedb := bc.stateCache.TrieDB()
+	for {
+		select {
+		case entry := <-bc.dereferenceCh:
+			triedb.Dereference(entry.lastRoot, entry.newRoot)
+		case entry := <-bc.dereferenceDBCh:
+			triedb.DereferenceDB(entry.lastRoot, entry.newRoot)
+			if triedb.UselessSize() > bc.cacheConfig.DBGCBlock {
+				triedb.UselessGC(1)
+			}
+		case <-bc.quit:
+			return
+		}
+	}
+}
+
+func (bc *BlockChain) dereference(lastRoot common.Hash, newRoot common.Hash) {
+	log.Trace("Add dereference task", "lastRoot", lastRoot.String(), "newRoot", newRoot.String())
+	bc.dereferenceCh <- gcEntry{
+		lastRoot: lastRoot,
+		newRoot:  newRoot,
+	}
+}
+
+func (bc *BlockChain) dereferenceDB(lastRoot common.Hash, newRoot common.Hash) {
+	log.Trace("Add dereferenceDB task", "lastRoot", lastRoot.String(), "newRoot", newRoot.String())
+	bc.dereferenceDBCh <- gcEntry{
+		lastRoot: lastRoot,
+		newRoot:  newRoot,
+	}
+}
+
 // WriteBlockWithState writes the block and all associated state to the database.
 func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) (status WriteStatus, err error) {
 	bc.wg.Add(1)
@@ -967,26 +1012,29 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 				log.Error("Commit to triedb error", "root", root)
 				return NonStatTy, err
 			}
-			triedb.Dereference(currentBlock.Root(), root)
+			//triedb.Dereference(currentBlock.Root(), root)
+			bc.dereference(currentBlock.Root(), root)
 			nodes, _ := triedb.Size()
 			oversize = nodes > limit
 		} else {
 			triedb.Reference(root, common.Hash{})
-			triedb.DereferenceDB(currentBlock.Root(), root)
+			//triedb.DereferenceDB(currentBlock.Root(), root)
+			bc.dereferenceDB(currentBlock.Root(), root)
 
 			if err := triedb.Commit(root, false, false); err != nil {
 				log.Error("Commit to triedb error", "root", root)
 				return NonStatTy, err
 			}
 
-			if triedb.UselessSize() > bc.cacheConfig.DBGCBlock {
-				triedb.UselessGC(1)
-			}
+			//if triedb.UselessSize() > bc.cacheConfig.DBGCBlock {
+			//	triedb.UselessGC(1)
+			//}
 
 			nodes, _ := triedb.Size()
 			oversize = nodes > limit
 		}
 
+		// CapNode must be executed after triedb.Commit, so it cannot be executed asynchronously here
 		if oversize {
 			triedb.CapNode(limit * defaultCapNodePercent)
 			triedb.ResetUseless()
