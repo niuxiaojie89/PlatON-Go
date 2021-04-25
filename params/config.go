@@ -27,8 +27,8 @@ import (
 
 // Genesis hashes to enforce below configs on.
 var (
-	MainnetGenesisHash = common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
-	TestnetGenesisHash = common.HexToHash("0x41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d")
+	MainnetGenesisHash = common.HexToHash("0x7c76759a423eadfe7513055efb726679be07875a81e10ea6445238caf0f34a23")
+	TestnetGenesisHash = common.HexToHash("0x47c7f3dea852b28c45d5fee6c950321486780065745179c7a296934e493f18e1")
 )
 
 var TrustedCheckpoints = map[common.Hash]*TrustedCheckpoint{
@@ -39,71 +39,46 @@ var TrustedCheckpoints = map[common.Hash]*TrustedCheckpoint{
 var (
 	initialMainNetConsensusNodes = []initNode{
 		{
-			"enode://6de1c55250563c4eb75f7ad3dd54cf5f6b86150bd8613b171ee28e1abc0c4936cf1d0cbc3939734fde31a147af226f98c33bd14d52be23cc2b34b5ba6e0d8765@mf1.a4f9.platon.network:16789",
-			"555d942d5cc88f3891933986d6dcf9b597f9865c1c8443666ceb0b9097b54a31473a036ceac47e714eaaaeeee2775f15a190449b1fa64cec4072b9407d685b196900ed7a30cd428715ac0f5a4f9c688d66b605daa5efbcab4b188f605a27b502",
+			"enode://d2d670c64375d958ae15030d2e7979a369a1142a8981f41cb6aa31727c90a6af79ea7b8d07284736eec4c690e501d5e638a7dc87a646b0245631afc84f1d0c1f@mf1.a4f9.platon.network:16789",
+			"a776f354346f1363c40afa949822a3831798cba0950a71e8cbbc1c396abcf0d65ac534518fbb96338a51708bf773af0cfd3f285374259c3edc22eaed9c270b9255596be5f6dc75c4df62defd6587259c8df123635706a8eddfeca9616f012881",
 		},
 		{
-			"enode://3b416a1fb1e66154087e4d98960a24935ab203da330d2fb7be44a1ffce0861cade982a83ff541cd9eef4f0b0b950449be290fd993279973d21a411d3832a52d4@mf2.8cd2.platon.network:16789",
-			"83268442e50daf719eab1c97d5d9928fcf02bbd6912af904d1d6bedc6c83943f8e9165bf38ffda995f4ff7b89fac5d104141feb5babe40428137701eff3a2289b9aeffbcd2d9160dee560378cd2ee46b90c70a2bdf3d8b62c76bf197f33fe407",
+			"enode://8dae13a4b3417a3443ce8e552974cc5119ed2a0796b81773d2a1457fdae767f2c0698c0f71849fe708e9b2a2b2e326944f56bce11f3d6048660bd8aae7ff0fb3@mf2.8cd2.platon.network:16789",
+			"7c157fa27e7491d166115580bece75aeb7b1efc5968f495cfb7dbfc32701462c7d0cbe7010a79bc2cf3861612d58c40957bc46bf255acf177f13efe2d5de76b32442baa902617dfd56294bb768e65b29f4525018972cc99eb80eba258310cd11",
 		},
 		{
-			"enode://e0d5a4a8732b411040a525db2780cdd8dd45e434f4e8d80400fefbe9b48079e8490ea9e56327c5ae76646107995a7f44d655821818a11bbc0ba6026ce480ccc9@mf3.f9ec.platon.network:16789",
-			"8d28bef573a9df55a622419e48a6ec2a8a7719c1750ce555e19e5f41927677b5d2885522d9186c538e665a3ada26c50fc52cbe95f4889025c65b8300cd713a2e5afbe7ee4d4953c6dad73adf9ecc5a696cf84a6dd1e1cb3cf7f57b7bb9ade813",
+			"enode://0e9b9887bec136c6eeb551072c4ce6c7caf5d68051b6a7c12f39637468e288e2bf4258cc907296f14dce1fc7cc01ab5cef51f7ce9ac4de3a9d4c6d4aa8dd166d@mf3.f9ec.platon.network:16789",
+			"3795f3da2ea48578040becfa208b13b7a7d35ea110f1bf092c99486d893028170a531b530df6c7a8e53ceb21f7114a03a2cc31b6528daba17dce9c3c7262d19d0ea0c131353213172c41f81f3d65ad0404b23d9bb0763e3b90c4de697888df90",
 		},
 		{
-			"enode://7ebbb666b11d7d63f278308a4750f3721d55bd2fc5115f529fbae12792053672ae7309b1567cd0403b001fe00d678c17ffbc8dfb2a26a8365bd174d37e473d4b@mf4.add3.platon.network:16789",
-			"99c17a47260722ecdb6074aa1f3d318173702daf930aaaff13b659bbd19f4a98eb10f6edd86ddd1aa588c0989676bf18244ed886a7ff02de930d2a85609710a1e26ae2031a8d88c6d5e2dc1add3462a94a6e2590e16986934c0e2e8d2354680c",
+			"enode://8568e4fa62b17c80befe49b27c1a4ba61d4b683d7ec59c568c5023cc8f14c87c756439d52b9a15af2750407e006e5fda515e0b68c5092eab297194e3699e936d@mf4.add3.platon.network:16789",
+			"67a10e82707b65824333eab1a234b9ff4a171c51be0063acdc5a7cc79708ab7853f03cf13daff0bab6de17908dc64e132e5112e6273b55a1733cac31823279179a5e717b2ec0003e74356deb01c2d28f5ab451bc7dfdd5bc39f80a3cd1423485",
 		},
 		{
-			"enode://3d5d15388828830ec67711b6d93785868693ddcf27bb8b02217c3dff5ee99b75c6287245a7dfd268f7d340acde44babe3c7ea0c98d0d8f156b985ec81714e293@mf5.0354.platon.network:16789",
-			"aeb6804f9e1561338b2277b833349aebfbf524e164f96218f2b4c06a9c92ff59d06e0ff5866bbed81c43cfb16075e90911186f37b4678b44a11d7a17ede1d0aab223709d4b80ec4c09843d403544e16c865ce92f20f3455bf2b1502c3933b390",
+			"enode://e5a06147d5e33cb935fff7d31a78422583d3cf0438c045da0ef6581c48e2ca1597687400adc35f2d79a93125d3d249e6aa3b881d163331e4c405e6e2b5293036@mf5.0354.platon.network:16789",
+			"12849c388b4dc0e94dcc240484d157203403df06dfbd5912554fc5c0b06cfd18eef4dec0cfd66f0144b2cca658d18208f002d546fb9c8d02bbfcd64d5d5bbf00d80867241329e4b3609319c0165109f0cdedaeb2d1246857ef3ea29951948098",
 		},
 		{
-			"enode://0f2a38f778e0617ed42b34d21d7b3d28a526a49f142269b0307de505b332c85b7f89f05ae3e39a5896a65928ea3d112e640853b5bbaa77d7c5763bfecb328f7a@mf6.9e2c.platon.network:16789",
-			"bd8778181425e509f7a37604d2778511f1ede950751d785cbf5a9573623d006c1767e7074c7566088592d6d62106e5001e297a3f352159b5a6e78ed7d55b4691b6f0eade7b25240b2a468099e2c1adb3fbf24bc2e849d476574c7c91e597f684",
+			"enode://e88cea24d93efe84f34a0edbe62a844aa4a15c560f1fc7c832170625aa93a9320c9c906bdf579de4c605ffe680734f7a26133f8196eff297089905e42955571b@mf6.9e2c.platon.network:16789",
+			"1d0adc463850d70a5f664fad1107bb8e646422e2e93e9dd4c5438c96e14aa44e3c36e9fd762b5ad2fbefbf0bfb088612d4b2daa3a15ddc6a895ea2c1d768b395379c629768a54f27d53a0e517662fa2753607d6a59c4f520e8ef020c558f2d93",
 		},
 		{
-			"enode://f4ff6f37bddb21c02bdaa5a66f0c6572c6aaa0493fdc44cc341d3c2623379c1210862324439a6ea09e11635fafd535d0c3294ba439065b6aa4af50887bece72f@mf7.e1dd.platon.network:16789",
-			"a298740a0cc11d32d1fe5088db78b9492be0bbefabc85e723f43f715c587eb71d5509122d87c63c61f513bd4f436e607547c249e05211e007d18909e7a275fe973b341099c9d8b540aea15fe1dd04eeb5ebaf2395594626ffe85b419e0410a00",
+			"enode://b6bb715a59ecc00220b0b4db038f51a586b43542d2063c0096b5c864da0057a47899d6e594094df428d52a52f68d1db9e9c172e8c0f2c4ed659ab74dcd5cfd6c@mf7.e1dd.platon.network:16789",
+			"d3635a29e275a570049431953f7693a8c8ad444c3282267042f837f1b31403dd079e952f52d7f5ab5c48a6a1052530035b6a31a91114458676fbb925c20c34e73cb5cffb40d0ef80e48abf5359ecdfa7b69815fb8beb9c46d364004ba2d28500",
 		},
 	}
 
 	initialTestnetConsensusNodes = []initNode{
 		{
-			"enode://b7f1f7757a900cce7ce4caf8663ecf871205763ac201c65f9551d5b841731a9cd9550bc05f3a16fbc2ef589c9faeef74d4500b60d76047939e2ba7fa4a5915aa@tf1.8e1f.platon.network:16789",
+			"enode://b7f1f7757a900cce7ce4caf8663ecf871205763ac201c65f9551d5b841731a9cd9550bc05f3a16fbc2ef589c9faeef74d4500b60d76047939e2ba7fa4a5915aa@127.0.0.1:16789",
 			"f1735bac863706b49809a4e635fe0c2e224aef5ad549f18ba3f2f6b61c0c9d0005f12d497a301ba26a8aaf009c90e4198301875002984c5cd9bd614cd2fbcb81c57f6355a8400d56c20804e1dfb34782c1f2eadda82c8b226aa4a71bfa60be8c",
 		},
-		{
-			"enode://3b2acc72f673173a97295728f6d9f93a8d75d1c615455f3ec3fdc4471e707e54935d89ba4736082db4b618b05de203fe828a8182b0f1ba09d495ad9a8ddb418b@tf2.dd0b.platon.network:16789",
-			"bd0d378e9d87e552d6f3842b38e30776e45eb14af3462822cbadf5eea492477dd764d10cc73c521e05fa90c6146dd70a6ae1bd25f473147b91ddd65e5077ead12a1010de2714ef7977067df4b519ab2f7d50db7c2e150dc2d5cb2bb6cc30e485",
-		},
-		{
-			"enode://184fb0464cd84a28e6c9aec564c058113b6c93ae80eccf1dc50be0481fd27bbfea3dfef492898987aeabba07fd0b5b7048a88163da348b729b0b56b6184f6e6c@tf3.4984.platon.network:16789",
-			"fd89eb74d9277b8a02eb32f2144bf571d7badbca85ea7ea1158f47f268e36119a8e83608b4b972a5fd332bdc4f0306149390ed0afa4f6bae3e18f80a6062feff0a53cd265c38a3bff43afdf93c06dd8cdd0928a57039aaf59712623cd412a38d",
-		},
-		{
-			"enode://31df231e05e089ee517f577a4ded288d210fc9d313c4ed862a7a758e4a74d8ae4b84de69be837371120a521199bce5ecf8665a56cd1efc2c8b665dd563a3f590@tf4.3c1b.platon.network:16789",
-			"1c6792a7868006106547d48fb77e2941240352fd5def1f447b38c88585655e02bdf91209b48db698866a92b59914d00cacbb4206f99ece4e78fb82a12c732039d5a17e23b9980cd26421f953c3017199dbd41b62f13227d69123f431fdae3506",
-		},
-		{
-			"enode://50ed65eb0180f771bbef453f0750bb324b626e6283b10b5203cae28e2e50744ba4bae51242f5d5dd17ce8d5bb71c50599f0432fd64b6a64d8026de181d8c5ae3@tf5.6021.platon.network:16789",
-			"0e82ee8823646e871d319a5e418c5845af4efebbffc873ace0b27ff1391c720fafb98a118447cca88efa2653cb1d8a1443fd38079bd8385e6291a52776158882360657b3c401c1a1dc2fb2cfc083247f454ea160fc6aadecdbc1b44ee7aa6f8c",
-		},
-		{
-			"enode://487a68847885a7b198b24920c1a5addc82d7c62fb43a503d7a4701a9fd72deed5e4f53116d8cca139d66731a2dc7537d5234d400188710864b83a7ccd65ab74d@tf6.f6a9.platon.network:16789",
-			"a41e72db25f7e4d2af738e6170d5d84c72c69a185be75f55a62fb5ad0b931061f8f32c13d851f96d0b819f67d079c205b12d73507fa156967c8e6f385c2ab5b373f6f4a5e3e86bd95fe9857001a1feabcdf9507b45f446a7066213563a8d7a81",
-		},
-		{
-			"enode://081da72f53a7cc4eaeace9f8a2960c1c01bf606153fd5acf47f540e0f2a1ebe5aed36fc8bf10263308b18845fe0079e027c85af31e03f995b6834d88f8461a19@tf7.f361.platon.network:16789",
-			"77d174270903955fd8b38de00c05c17b078031722e1fc414188251a5da34aa8025dc3cb75bebedf5cd8eb91d25bee213a5fd78f12ed77892bd2f2e4a21595a413280e37d1d1726bf9fa62e042307de89ee6e243304ef768bac3a9d466dc3a406",
-		},
 	}
-
-	initialDemoNetConsensusNodes = []initNode{}
 
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		ChainID:     big.NewInt(100),
+		AddressHRP:  "lat",
 		EmptyBlock:  "on",
 		EIP155Block: big.NewInt(1),
 		Cbft: &CbftConfig{
@@ -127,24 +102,11 @@ var (
 	// TestnetChainConfig is the chain parameters to run a node on the test network.
 	TestnetChainConfig = &ChainConfig{
 		ChainID:     big.NewInt(104),
+		AddressHRP:  "lat",
 		EmptyBlock:  "on",
 		EIP155Block: big.NewInt(1),
 		Cbft: &CbftConfig{
 			InitialNodes:  ConvertNodeUrl(initialTestnetConsensusNodes),
-			Amount:        10,
-			ValidatorMode: "ppos",
-			Period:        20000,
-		},
-		GenesisVersion: GenesisVersion,
-	}
-
-	// DemonetChainConfig is the chain parameters to run a node on the demo network.
-	DemonetChainConfig = &ChainConfig{
-		ChainID:     big.NewInt(399),
-		EmptyBlock:  "on",
-		EIP155Block: big.NewInt(1),
-		Cbft: &CbftConfig{
-			InitialNodes:  ConvertNodeUrl(initialDemoNetConsensusNodes),
 			Amount:        10,
 			ValidatorMode: "ppos",
 			Period:        20000,
@@ -162,6 +124,7 @@ var (
 	}
 
 	GrapeChainConfig = &ChainConfig{
+		AddressHRP:  "lat",
 		ChainID:     big.NewInt(304),
 		EmptyBlock:  "on",
 		EIP155Block: big.NewInt(3),
@@ -175,9 +138,9 @@ var (
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), "", big.NewInt(0), big.NewInt(0), nil, nil, GenesisVersion}
+	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), "lat", "", big.NewInt(0), big.NewInt(0), nil, nil, GenesisVersion}
 
-	TestChainConfig = &ChainConfig{big.NewInt(1), "", big.NewInt(0), big.NewInt(0), nil, new(CbftConfig), GenesisVersion}
+	TestChainConfig = &ChainConfig{big.NewInt(1), "lat", "", big.NewInt(0), big.NewInt(0), nil, new(CbftConfig), GenesisVersion}
 )
 
 // TrustedCheckpoint represents a set of post-processed trie roots (CHT and
@@ -199,6 +162,7 @@ type TrustedCheckpoint struct {
 // set of configuration options.
 type ChainConfig struct {
 	ChainID     *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
+	AddressHRP  string   `json:"addressHRP"`
 	EmptyBlock  string   `json:"emptyBlock"`
 	EIP155Block *big.Int `json:"eip155Block,omitempty"` // EIP155 HF block
 	EWASMBlock  *big.Int `json:"ewasmBlock,omitempty"`  // EWASM switch block (nil = no fork, 0 = already activated)
@@ -354,28 +318,6 @@ func newCompatError(what string, storedblock, newblock *big.Int) *ConfigCompatEr
 
 func (err *ConfigCompatError) Error() string {
 	return fmt.Sprintf("mismatching %s in database (have %d, want %d, rewindto %d)", err.What, err.StoredConfig, err.NewConfig, err.RewindTo)
-}
-
-// Rules wraps ChainConfig and is merely syntactic sugar or can be used for functions
-// that do not have or require information about the block.
-//
-// Rules is a one time interface meaning that it shouldn't be used in between transition
-// phases.
-type Rules struct {
-	ChainID  *big.Int
-	IsEIP155 bool
-}
-
-// Rules ensures c's ChainID is not nil.
-func (c *ChainConfig) Rules(num *big.Int) Rules {
-	chainID := c.ChainID
-	if chainID == nil {
-		chainID = new(big.Int)
-	}
-	return Rules{
-		ChainID:  new(big.Int).Set(chainID),
-		IsEIP155: c.IsEIP155(num),
-	}
 }
 
 func ConvertNodeUrl(initialNodes []initNode) []CbftNode {

@@ -2,6 +2,7 @@ package vm
 
 import (
 	"crypto/sha256"
+	"github.com/holiman/uint256"
 
 	"golang.org/x/crypto/ripemd160"
 
@@ -825,7 +826,19 @@ func GasPrice(proc *exec.Process, gasPrice uint32) uint32 {
 func BlockHash(proc *exec.Process, num uint64, dst uint32) {
 	ctx := proc.HostCtx().(*VMContext)
 	checkGas(ctx, GasExtStep)
-	blockHash := ctx.evm.GetHash(num)
+
+	// Add get block height limit, same as evm opBlockhash
+	var upper, lower uint64
+	upper = ctx.evm.BlockNumber.Uint64()
+	if upper < 257 {
+		lower = 0
+	} else {
+		lower = upper - 256
+	}
+	var blockHash common.Hash
+	if num >= lower && num < upper {
+		blockHash = ctx.evm.GetHash(num)
+	}
 	_, err := proc.WriteAt(blockHash.Bytes(), int64(dst))
 	if nil != err {
 		panic(err)
@@ -987,7 +1000,7 @@ func Transfer(proc *exec.Process, dst uint32, amount uint32, len uint32) int32 {
 	if transfersValue {
 		gas += params.CallValueTransferGas
 	}
-	gasTemp, err := callGas(ctx.gasTable, ctx.contract.Gas, params.TxGas, new(big.Int).SetUint64(ctx.contract.Gas))
+	gasTemp, err := callGas(ctx.contract.Gas, params.TxGas, uint256.NewInt().SetUint64(ctx.contract.Gas))
 	if nil != err {
 		panic(err)
 	}
@@ -1245,7 +1258,7 @@ func CallContract(proc *exec.Process, addrPtr, args, argsLen, val, valLen, callC
 		gas += params.CallValueTransferGas
 	}
 
-	gasTemp, err := callGas(ctx.gasTable, ctx.contract.Gas, gas, bCost)
+	gasTemp, err := callGas(ctx.contract.Gas, gas, uint256.NewInt().SetBytes(bCost.Bytes()))
 	if nil != err {
 		panic(err)
 	}
@@ -1275,6 +1288,13 @@ func CallContract(proc *exec.Process, addrPtr, args, argsLen, val, valLen, callC
 	if err == nil || err == errExecutionReverted {
 		ctx.CallOut = ret
 	}
+
+	if nil != err {
+		if _, ok := err.(*common.BizError); ok {
+			ctx.CallOut = ret
+		}
+	}
+
 	ctx.contract.Gas += returnGas
 
 	return status
@@ -1309,7 +1329,7 @@ func DelegateCallContract(proc *exec.Process, addrPtr, params, paramsLen, callCo
 		bCost = new(big.Int).SetUint64(ctx.contract.Gas)
 	}
 
-	gasTemp, err := callGas(ctx.gasTable, ctx.contract.Gas, ctx.gasTable.Calls, bCost)
+	gasTemp, err := callGas(ctx.contract.Gas, ctx.gasTable.Calls, uint256.NewInt().SetBytes(bCost.Bytes()))
 	if nil != err {
 		panic(err)
 	}
@@ -1334,6 +1354,13 @@ func DelegateCallContract(proc *exec.Process, addrPtr, params, paramsLen, callCo
 	if err == nil || err == errExecutionReverted {
 		ctx.CallOut = ret
 	}
+
+	if nil != err {
+		if _, ok := err.(*common.BizError); ok {
+			ctx.CallOut = ret
+		}
+	}
+
 	ctx.contract.Gas += returnGas
 
 	return status
@@ -1368,7 +1395,7 @@ func StaticCallContract(proc *exec.Process, addrPtr, params, paramsLen, callCost
 		bCost = new(big.Int).SetUint64(ctx.contract.Gas)
 	}
 
-	gasTemp, err := callGas(ctx.gasTable, ctx.contract.Gas, ctx.gasTable.Calls, bCost)
+	gasTemp, err := callGas(ctx.contract.Gas, ctx.gasTable.Calls, uint256.NewInt().SetBytes(bCost.Bytes()))
 	if nil != err {
 		panic(err)
 	}
@@ -1394,6 +1421,13 @@ func StaticCallContract(proc *exec.Process, addrPtr, params, paramsLen, callCost
 	if err == nil || err == errExecutionReverted {
 		ctx.CallOut = ret
 	}
+
+	if nil != err {
+		if _, ok := err.(*common.BizError); ok {
+			ctx.CallOut = ret
+		}
+	}
+
 	ctx.contract.Gas += returnGas
 
 	return status
@@ -1488,7 +1522,7 @@ func MigrateInnerContract(proc *exec.Process, newAddr, val, valLen, callCost, ca
 	if bValue.Sign() != 0 {
 		gas += params.CallNewAccountGas
 	}
-	gasTemp, err := callGas(ctx.gasTable, ctx.contract.Gas, gas, bCost)
+	gasTemp, err := callGas(ctx.contract.Gas, gas, uint256.NewInt().SetBytes(bCost.Bytes()))
 	if nil != err {
 		panic(err)
 	}
@@ -2143,7 +2177,7 @@ func CreateContract(proc *exec.Process, newAddr, val, valLen, callCost, callCost
 	}
 
 	gas := params.CallNewAccountGas
-	gasTemp, err := callGas(ctx.gasTable, ctx.contract.Gas, gas, costValue)
+	gasTemp, err := callGas(ctx.contract.Gas, gas, uint256.NewInt().SetBytes(costValue.Bytes()))
 	if nil != err {
 		panic(err)
 	}
