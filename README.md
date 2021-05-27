@@ -19,8 +19,6 @@ go build ./*
 
 执行 `./nscan -h` 查看启动选项：
 
-### Connect to the PlatON network
-
 | 选项 | 描述 |
 | :------------ | :------------ |
 | --chainID | 链ID，默认主网100 |
