@@ -16,7 +16,7 @@ func OutputFile(nodeData string, duration string) error {
 	if PathExists(filePath) {
 		os.Remove(filePath)
 	}
-	f, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0775)
 	if err != nil {
 		return fmt.Errorf("open file error, filePath: %s, error: %s", filePath, err.Error())
 	}
