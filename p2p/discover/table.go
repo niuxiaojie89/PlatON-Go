@@ -339,6 +339,25 @@ func (tab *Table) findnode(n *Node, targetID NodeID, reply chan<- []*Node) {
 	reply <- r
 }
 
+func (tab *Table) Findnode(n *Node, targetID NodeID, maxFindnodeFailures int) ([]*Node, error) {
+	fails := 0
+	for {
+		if fails < maxFindnodeFailures {
+			r, err := tab.net.findnode(n.ID, n.addr(), targetID)
+			if err != nil || len(r) == 0 {
+				fails++
+				//fmt.Println("Findnode failed, try again", "id", n.ID.TerminalString(), "addr", n.addr(), "err", err, "fails", fails)
+				time.Sleep(1200 * time.Millisecond)
+			} else {
+				return r, nil
+			}
+		} else {
+			fmt.Println("Findnode failed", "id", n.ID.TerminalString(), "addr", n.addr(), "fails", fails)
+			return nil, fmt.Errorf("findnode failed, nodeID: %s, nodeAddr: %s, fails: %d", n.ID, n.addr(), fails)
+		}
+	}
+}
+
 func (tab *Table) refresh() <-chan struct{} {
 	done := make(chan struct{})
 	select {
