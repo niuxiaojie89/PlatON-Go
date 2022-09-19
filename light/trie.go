@@ -123,11 +123,15 @@ func (t *odrTrie) TryDelete(key []byte) error {
 	})
 }
 
-func (t *odrTrie) Commit(onleaf trie.LeafCallback) (common.Hash, int, error) {
+func (t *odrTrie) Commit(onleaf trie.LeafCallback) (common.Hash, error) {
 	if t.trie == nil {
-		return t.id.Root, 0, nil
+		return t.id.Root, nil
 	}
 	return t.trie.Commit(onleaf)
+}
+
+func (t *odrTrie) ParallelCommit(onleaf trie.LeafCallback) (common.Hash, error) {
+	return t.Commit(onleaf)
 }
 
 func (t *odrTrie) Hash() common.Hash {
@@ -135,6 +139,10 @@ func (t *odrTrie) Hash() common.Hash {
 		return t.id.Root
 	}
 	return t.trie.Hash()
+}
+
+func (t *odrTrie) ParallelHash() common.Hash {
+	return t.Hash()
 }
 
 func (t *odrTrie) NodeIterator(startkey []byte) trie.NodeIterator {

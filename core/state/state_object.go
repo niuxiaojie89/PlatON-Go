@@ -416,7 +416,7 @@ func (s *stateObject) updateRoot(db Database) {
 		defer func(start time.Time) { s.db.StorageHashes += time.Since(start) }(time.Now())
 	}
 	//s.data.Root = s.trie.Hash()
-	s.data.Root = s.trie.Hash()
+	s.data.Root = s.trie.ParallelHash()
 }
 
 // CommitTrie the storage trie of the object to db.
@@ -434,7 +434,7 @@ func (s *stateObject) CommitTrie(db Database) error {
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageCommits += time.Since(start) }(time.Now())
 	}
-	root, _, err := s.trie.Commit(nil)
+	root, err := s.trie.Commit(nil)
 
 	if err == nil {
 		s.data.Root = root

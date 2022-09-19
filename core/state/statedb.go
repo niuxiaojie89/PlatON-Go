@@ -986,11 +986,11 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.AccountHashes += time.Since(start) }(time.Now())
 	}
-	return s.trie.Hash()
+	return s.trie.ParallelHash()
 }
 
 func (s *StateDB) Root() common.Hash {
-	return s.trie.Hash()
+	return s.trie.ParallelHash()
 }
 
 // Prepare sets the current transaction hash and index and block hash which is
@@ -1042,11 +1042,13 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 		s.stateObjectsDirty = make(map[common.Address]struct{})
 	}
 	// Write the account trie changes, measuing the amount of wasted time
+	var start time.Time
 	if metrics.EnabledExpensive {
-		defer func(start time.Time) { s.AccountCommits += time.Since(start) }(time.Now())
+		start = time.Now()
 	}
 	// Write trie changes.
-	root, _, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
+	//root, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
+	root, err = s.trie.ParallelCommit(func(leaf []byte, parent common.Hash) error {
 		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
@@ -1060,6 +1062,9 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 		}
 		return nil
 	})
+	if metrics.EnabledExpensive {
+		s.AccountCommits += time.Since(start)
+	}
 	return root, err
 }
 

@@ -334,7 +334,7 @@ func (db *Database) InsertBlob(hash common.Hash, blob []byte) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 	db.insertFreshNode(hash)
-	db.insert(hash, len(blob), rawNode(blob))
+	db.insert(hash, blob, rawNode(blob))
 }
 
 func (db *Database) insertFreshNode(hash common.Hash) {
@@ -347,19 +347,17 @@ func (db *Database) resetFreshNode() {
 
 // insert inserts a collapsed trie node into the memory database. This method is
 // a more generic version of InsertBlob, supporting both raw blob insertions as
-// well ex trie node insertions. The blob size must be specified to allow proper
+// well ex trie node insertions. The blob must always be specified to allow proper
 // size tracking.
-func (db *Database) insert(hash common.Hash, size int, node node) {
+func (db *Database) insert(hash common.Hash, blob []byte, node node) {
 	// If the node's already cached, skip
 	if _, ok := db.dirties[hash]; ok {
 		return
 	}
-	memcacheDirtyWriteMeter.Mark(int64(size))
-
 	// Create the cached entry for this node
 	entry := &cachedNode{
 		node:      simplifyNode(node),
-		size:      uint16(size),
+		size:      uint16(len(blob)),
 		flushPrev: db.newest,
 		version:   db.NodeVersion(),
 	}
@@ -369,7 +367,6 @@ func (db *Database) insert(hash common.Hash, size int, node node) {
 	//	}
 	//})
 	db.dirties[hash] = entry
-
 	// Update the flush-list endpoints
 	if db.oldest == (common.Hash{}) {
 		db.oldest, db.newest = hash, hash
