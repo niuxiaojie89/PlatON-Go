@@ -1046,7 +1046,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 		defer func(start time.Time) { s.AccountCommits += time.Since(start) }(time.Now())
 	}
 	// Write trie changes.
-	root, _, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
+	root, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
 		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil

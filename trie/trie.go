@@ -508,25 +508,17 @@ func (t *Trie) Hash() common.Hash {
 
 // Commit writes all nodes to the trie's memory database, tracking the internal
 // and external (for account tries) references.
-func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, int, error) {
+func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, error) {
 	if t.db == nil {
 		panic("commit called on trie with nil database")
 	}
 	if t.root == nil {
-		return emptyRoot, 0, nil
+		return emptyRoot, nil
 	}
-	// Derive the hash for all dirty nodes first. We hold the assumption
-	// in the following procedure that all nodes are hashed.
-	rootHash := t.Hash()
+
 	h := newCommitter()
 	defer returnCommitterToPool(h)
 
-	// Do a quick check if we really need to commit, before we spin
-	// up goroutines. This can happen e.g. if we load a trie for reading storage
-	// values, but don't write to it.
-	if _, dirty := t.root.cache(); !dirty {
-		return rootHash, 0, nil
-	}
 	var wg sync.WaitGroup
 	if onleaf != nil {
 		h.onleaf = onleaf
@@ -537,7 +529,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, int, error) {
 			h.commitLoop(t.db)
 		}()
 	}
-	newRoot, committed, err := h.Commit(t.root, t.db)
+	hash, cached, err := h.Commit(t.root)
 	if onleaf != nil {
 		// The leafch is created in newCommitter if there was an onleaf callback
 		// provided. The commitLoop only _reads_ from it, and the commit
@@ -547,10 +539,10 @@ func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, int, error) {
 		wg.Wait()
 	}
 	if err != nil {
-		return common.Hash{}, 0, err
+		return common.Hash{}, err
 	}
-	t.root = newRoot
-	return rootHash, committed, nil
+	t.root = cached
+	return common.BytesToHash(hash.(hashNode)), nil
 }
 
 func (t *Trie) hashRoot() (node, node, error) {
