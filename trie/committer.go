@@ -74,18 +74,6 @@ func returnCommitterToPool(h *committer) {
 
 // Commit collapses a node down into a hash node and inserts it into the database
 func (c *committer) Commit(n node) (node, node, error) {
-	// If we're not storing the node, just hashing, use available cached data
-	if hash, dirty := n.cache(); len(hash) != 0 {
-		if !dirty {
-			switch n.(type) {
-			case *fullNode, *shortNode:
-				return hash, hash, nil
-			default:
-				return hash, n, nil
-			}
-		}
-	}
-
 	return c.commit(n, true)
 }
 
