@@ -21,8 +21,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"sync"
-
 	"github.com/PlatONnetwork/PlatON-Go/common"
 	"github.com/PlatONnetwork/PlatON-Go/crypto"
 	"github.com/PlatONnetwork/PlatON-Go/log"
@@ -512,32 +510,8 @@ func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, error) {
 	if t.db == nil {
 		panic("commit called on trie with nil database")
 	}
-	if t.root == nil {
-		return emptyRoot, nil
-	}
 
-	h := newCommitter()
-	defer returnCommitterToPool(h)
-
-	var wg sync.WaitGroup
-	if onleaf != nil {
-		h.onleaf = onleaf
-		h.leafCh = make(chan *leaf, leafChanSize)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			h.commitLoop(t.db)
-		}()
-	}
-	hash, cached, err := h.Commit(t.root)
-	if onleaf != nil {
-		// The leafch is created in newCommitter if there was an onleaf callback
-		// provided. The commitLoop only _reads_ from it, and the commit
-		// operation was the sole writer. Therefore, it's safe to close this
-		// channel here.
-		close(h.leafCh)
-		wg.Wait()
-	}
+	hash, cached, err := t.commitRoot(t.db, onleaf)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -551,8 +525,18 @@ func (t *Trie) hashRoot() (node, node, error) {
 	}
 	h := newHasher()
 	defer returnHasherToPool(h)
-
 	return h.hash(t.root, true)
+}
+
+func (t *Trie) commitRoot(db *Database, onleaf LeafCallback) (node, node, error) {
+	if t.root == nil {
+		return hashNode(emptyRoot.Bytes()), nil, nil
+	}
+
+	c := newCommitter(onleaf)
+	defer returnCommitterToPool(c)
+
+	return c.commit(t.root, db, true)
 }
 
 func (t *Trie) DeepCopyTrie() *Trie {

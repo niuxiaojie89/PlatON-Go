@@ -18,24 +18,13 @@ package trie
 
 import (
 	"fmt"
+	"golang.org/x/crypto/sha3"
 	"sync"
 
 	"github.com/PlatONnetwork/PlatON-Go/common"
 	"github.com/PlatONnetwork/PlatON-Go/crypto"
 	"github.com/PlatONnetwork/PlatON-Go/rlp"
-	"golang.org/x/crypto/sha3"
 )
-
-// leafChanSize is the size of the leafCh. It's a pretty arbitrary number, to allow
-// some parallelism but not incur too much memory overhead.
-const leafChanSize = 200
-
-// leaf represents a trie leaf value
-type leaf struct {
-	size int         // size of the rlp data (estimate)
-	hash common.Hash // hash of rlp data
-	node node        // the node to commit
-}
 
 // committer is a type used for the trie Commit operation. A committer has some
 // internal preallocated temp space, and also a callback that is invoked when
@@ -46,39 +35,33 @@ type leaf struct {
 type committer struct {
 	sha crypto.KeccakState
 	tmp sliceBuffer
-
 	onleaf LeafCallback
-	leafCh chan *leaf
 }
 
 // committers live in a global sync.Pool
 var committerPool = sync.Pool{
 	New: func() interface{} {
 		return &committer{
-			tmp: make([]byte, 0, 550), // cap is as large as a full fullNode.
+			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
 			sha: sha3.NewLegacyKeccak256().(crypto.KeccakState),
 		}
 	},
 }
 
 // newCommitter creates a new committer or picks one from the pool.
-func newCommitter() *committer {
-	return committerPool.Get().(*committer)
+func newCommitter(onleaf LeafCallback) *committer {
+	c := committerPool.Get().(*committer)
+	c.onleaf = onleaf
+	return c
 }
 
-func returnCommitterToPool(h *committer) {
-	h.onleaf = nil
-	h.leafCh = nil
-	committerPool.Put(h)
-}
-
-// Commit collapses a node down into a hash node and inserts it into the database
-func (c *committer) Commit(n node) (node, node, error) {
-	return c.commit(n, true)
+func returnCommitterToPool(c *committer) {
+	c.onleaf = nil
+	committerPool.Put(c)
 }
 
 // commit collapses a node down into a hash node and inserts it into the database
-func (c *committer) commit(n node, force bool) (node, node, error) {
+func (c *committer) commit(n node, db *Database, force bool) (node, node, error) {
 	// If we're not storing the node, just hashing, use available cached data
 	if hash, dirty := n.cache(); len(hash) != 0 {
 		if !dirty {
@@ -91,11 +74,11 @@ func (c *committer) commit(n node, force bool) (node, node, error) {
 		}
 	}
 	// Trie not processed yet or needs storage, walk the children
-	collapsed, cached, err := c.commitChildren(n)
+	collapsed, cached, err := c.commitChildren(n, db)
 	if err != nil {
 		return hashNode{}, n, err
 	}
-	hashed, err := c.store(collapsed, force)
+	hashed, err := c.store(collapsed, db, force)
 	if err != nil {
 		return hashNode{}, n, err
 	}
@@ -115,7 +98,7 @@ func (c *committer) commit(n node, force bool) (node, node, error) {
 	return hashed, cached, nil
 }
 
-func (c *committer) commitChildren(original node) (node, node, error) {
+func (c *committer) commitChildren(original node, db *Database) (node, node, error) {
 	var err error
 
 	switch n := original.(type) {
@@ -126,7 +109,7 @@ func (c *committer) commitChildren(original node) (node, node, error) {
 		cached.Key = common.CopyBytes(n.Key)
 
 		if _, ok := n.Val.(valueNode); !ok {
-			collapsed.Val, cached.Val, err = c.commit(n.Val, false)
+			collapsed.Val, cached.Val, err = c.commit(n.Val, db, false)
 			if err != nil {
 				return original, original, err
 			}
@@ -139,7 +122,7 @@ func (c *committer) commitChildren(original node) (node, node, error) {
 
 		for i := 0; i < 16; i++ {
 			if n.Children[i] != nil {
-				collapsed.Children[i], cached.Children[i], err = c.commit(n.Children[i], false)
+				collapsed.Children[i], cached.Children[i], err = c.commit(n.Children[i], db, false)
 				if err != nil {
 					return original, original, err
 				}
@@ -157,7 +140,7 @@ func (c *committer) commitChildren(original node) (node, node, error) {
 // store hashes the node n and if we have a storage layer specified, it writes
 // the key/value pair to it and tracks any node->child references as well as any
 // node->external trie references.
-func (c *committer) store(n node, force bool) (node, error) {
+func (c *committer) store(n node, db *Database, force bool) (node, error) {
 	// Don't store hashes or empty nodes.
 	if _, isHash := n.(hashNode); n == nil || isHash {
 		return n, nil
@@ -173,54 +156,38 @@ func (c *committer) store(n node, force bool) (node, error) {
 	// Larger nodes are replaced by their hash and stored in the database.
 	hash, _ := n.cache()
 	if len(hash) == 0 {
-		hash = c.hashData(c.tmp)
+		hash = c.makeHashNode(c.tmp)
 	}
 
-	if c.leafCh != nil {
-		c.leafCh <- &leaf{
-			size: estimateSize(n),
-			hash: common.BytesToHash(hash),
-			node: n,
+	// We are pooling the trie nodes into an intermediate memory cache
+	hash2 := common.BytesToHash(hash)
+	db.lock.Lock()
+	db.insert(hash2, estimateSize(n), n)
+	db.insertFreshNode(hash2)
+	db.lock.Unlock()
+
+	// Track external references from account->storage trie
+	if c.onleaf != nil {
+		switch n := n.(type) {
+		case *shortNode:
+			if child, ok := n.Val.(valueNode); ok {
+				c.onleaf(child, hash2)
+			}
+		case *fullNode:
+			for i := 0; i < 16; i++ {
+				if child, ok := n.Children[i].(valueNode); ok {
+					c.onleaf(child, hash2)
+				}
+			}
 		}
 	}
 
 	return hash, nil
 }
 
-// commitLoop does the actual insert + leaf callback for nodes.
-func (c *committer) commitLoop(db *Database) {
-	for item := range c.leafCh {
-		var (
-			hash = item.hash
-			size = item.size
-			n    = item.node
-		)
-		// We are pooling the trie nodes into an intermediate memory cache
-		db.lock.Lock()
-		db.insert(hash, size, n)
-		db.insertFreshNode(hash)
-		db.lock.Unlock()
-
-		if c.onleaf != nil {
-			switch n := n.(type) {
-			case *shortNode:
-				if child, ok := n.Val.(valueNode); ok {
-					c.onleaf(child, hash)
-				}
-			case *fullNode:
-				for i := 0; i < 16; i++ {
-					if child, ok := n.Children[i].(valueNode); ok {
-						c.onleaf(child, hash)
-					}
-				}
-			}
-		}
-	}
-}
-
-// hashData hashes the provided data
-func (c *committer) hashData(data []byte) hashNode {
-	n := make(hashNode, 32)
+// makeHashNode hashes the provided data
+func (c *committer) makeHashNode(data []byte) hashNode {
+	n := make(hashNode, c.sha.Size())
 	c.sha.Reset()
 	c.sha.Write(data)
 	c.sha.Read(n)

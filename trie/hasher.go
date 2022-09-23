@@ -17,11 +17,12 @@
 package trie
 
 import (
+	"golang.org/x/crypto/sha3"
+	"sync"
+
 	"github.com/PlatONnetwork/PlatON-Go/common"
 	"github.com/PlatONnetwork/PlatON-Go/crypto"
 	"github.com/PlatONnetwork/PlatON-Go/rlp"
-	"golang.org/x/crypto/sha3"
-	"sync"
 )
 
 // hasher is a type used for the trie Hash operation. A hasher has some
@@ -49,7 +50,7 @@ func (b *sliceBuffer) Reset() {
 var hasherPool = sync.Pool{
 	New: func() interface{} {
 		return &hasher{
-			tmp: make([]byte, 0, 550), // cap is as large as a full fullNode.
+			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
 			sha: sha3.NewLegacyKeccak256().(crypto.KeccakState),
 			//encbuf: rlp.NewEncoderBuffer(nil),
 		}
@@ -146,7 +147,7 @@ func (h *hasher) store(n node, force bool) (node, error) {
 	if _, isHash := n.(hashNode); n == nil || isHash {
 		return n, nil
 	}
-	// Generate the RLP encoding of the
+	// Generate the RLP encoding of the node
 	h.tmp.Reset()
 	if err := rlp.Encode(&h.tmp, n); err != nil {
 		panic("encode error: " + err.Error())
@@ -157,15 +158,15 @@ func (h *hasher) store(n node, force bool) (node, error) {
 	// Larger nodes are replaced by their hash and stored in the database.
 	hash, _ := n.cache()
 	if len(hash) == 0 {
-		hash = h.hashData(h.tmp)
+		hash = h.makeHashNode(h.tmp)
 	}
 
 	return hash, nil
 }
 
-// hashData hashes the provided data
-func (h *hasher) hashData(data []byte) hashNode {
-	n := make(hashNode, 32)
+// makeHashNode hashes the provided data
+func (h *hasher) makeHashNode(data []byte) hashNode {
+	n := make(hashNode, h.sha.Size())
 	h.sha.Reset()
 	h.sha.Write(data)
 	h.sha.Read(n)
