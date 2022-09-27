@@ -29,7 +29,7 @@ var indices = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b
 
 type node interface {
 	cache() (hashNode, bool)
-	//encode(w rlp.EncoderBuffer)
+	encode(w rlp.EncoderBuffer)
 	fstring(string) string
 }
 

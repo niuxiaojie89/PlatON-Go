@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"github.com/PlatONnetwork/PlatON-Go/log"
 	"github.com/PlatONnetwork/PlatON-Go/params"
 	"github.com/holiman/uint256"
 )
@@ -61,6 +62,7 @@ func enable1344(jt *JumpTable) {
 func opChainID(pc *uint64, interpreter *EVMInterpreter, callContext *callCtx) ([]byte, error) {
 	chainId, _ := uint256.FromBig(interpreter.evm.chainConfig.ChainID)
 	callContext.stack.push(chainId)
+	log.Error("EVM OPCHAINID STATISTICS", "ContractAddr", callContext.contract.Address().Bech32(), "caller", callContext.contract.CallerAddress.Bech32())
 	return nil, nil
 }
 

@@ -33,8 +33,9 @@ import (
 // By 'some level' of parallelism, it's still the case that all leaves will be
 // processed sequentially - onleaf will never be called in parallel or out of order.
 type committer struct {
-	sha crypto.KeccakState
-	tmp sliceBuffer
+	sha    crypto.KeccakState
+	tmp    sliceBuffer
+	encbuf rlp.EncoderBuffer
 	onleaf LeafCallback
 }
 
@@ -42,8 +43,9 @@ type committer struct {
 var committerPool = sync.Pool{
 	New: func() interface{} {
 		return &committer{
-			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
-			sha: sha3.NewLegacyKeccak256().(crypto.KeccakState),
+			tmp:    make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
+			sha:    sha3.NewLegacyKeccak256().(crypto.KeccakState),
+			encbuf: rlp.NewEncoderBuffer(nil),
 		}
 	},
 }
@@ -146,17 +148,16 @@ func (c *committer) store(n node, db *Database, force bool) (node, error) {
 		return n, nil
 	}
 	// Generate the RLP encoding of the node
-	c.tmp.Reset()
-	if err := rlp.Encode(&c.tmp, n); err != nil {
-		panic("encode error: " + err.Error())
-	}
-	if len(c.tmp) < 32 && !force {
+	n.encode(c.encbuf)
+	enc := c.encodedBytes()
+	if len(enc) < 32 && !force {
 		return n, nil // Nodes smaller than 32 bytes are stored inside their parent
 	}
+
 	// Larger nodes are replaced by their hash and stored in the database.
 	hash, _ := n.cache()
 	if len(hash) == 0 {
-		hash = c.makeHashNode(c.tmp)
+		hash = c.makeHashNode(enc)
 	}
 
 	// We are pooling the trie nodes into an intermediate memory cache
@@ -183,6 +184,22 @@ func (c *committer) store(n node, db *Database, force bool) (node, error) {
 	}
 
 	return hash, nil
+}
+
+// encodedBytes returns the result of the last encoding operation on h.encbuf.
+// This also resets the encoder buffer.
+//
+// All node encoding must be done like this:
+//
+//     node.encode(h.encbuf)
+//     enc := h.encodedBytes()
+//
+// This convention exists because node.encode can only be inlined/escape-analyzed when
+// called on a concrete receiver type.
+func (c *committer) encodedBytes() []byte {
+	c.tmp = c.encbuf.AppendToBytes(c.tmp[:0])
+	c.encbuf.Reset(nil)
+	return c.tmp
 }
 
 // makeHashNode hashes the provided data

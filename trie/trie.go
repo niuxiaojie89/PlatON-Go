@@ -47,10 +47,6 @@ type LeafCallback func(leaf []byte, parent common.Hash) error
 type Trie struct {
 	db   *Database
 	root node
-	// Keep track of the number leafs which have been inserted since the last
-	// hashing operation. This number will not directly map to the number of
-	// actually unhashed nodes
-	unhashed int
 }
 
 // newFlag returns the cache flag value for a newly created node.
@@ -243,7 +239,6 @@ func (t *Trie) Update(key, value []byte) {
 //
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryUpdate(key, value []byte) error {
-	t.unhashed++
 	k := keybytesToHex(key)
 	if len(value) != 0 {
 		_, n, err := t.insert(t.root, nil, k, valueNode(value))
@@ -340,7 +335,6 @@ func (t *Trie) Delete(key []byte) {
 // TryDelete removes any existing value for key from the trie.
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryDelete(key []byte) error {
-	t.unhashed++
 	k := keybytesToHex(key)
 	_, n, err := t.delete(t.root, nil, k)
 	if err != nil {

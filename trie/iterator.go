@@ -22,7 +22,6 @@ import (
 	"errors"
 
 	"github.com/PlatONnetwork/PlatON-Go/common"
-	"github.com/PlatONnetwork/PlatON-Go/rlp"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -192,8 +191,7 @@ func (it *nodeIterator) LeafProof() [][]byte {
 				node, _, _ := hasher.hashChildren(item.node)
 				hashed, _ := hasher.store(node, false)
 				if _, ok := hashed.(hashNode); ok || i == 0 {
-					enc, _ := rlp.EncodeToBytes(node)
-					proofs = append(proofs, enc)
+					proofs = append(proofs, nodeToBytes(node))
 				}
 			}
 			return proofs

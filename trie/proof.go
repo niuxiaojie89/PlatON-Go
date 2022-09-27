@@ -24,7 +24,6 @@ import (
 	"github.com/PlatONnetwork/PlatON-Go/crypto"
 	"github.com/PlatONnetwork/PlatON-Go/ethdb"
 	"github.com/PlatONnetwork/PlatON-Go/log"
-	"github.com/PlatONnetwork/PlatON-Go/rlp"
 )
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
@@ -79,7 +78,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) e
 			if fromLevel > 0 {
 				fromLevel--
 			} else {
-				enc, _ := rlp.EncodeToBytes(n)
+				enc := nodeToBytes(n)
 				if !ok {
 					hash = crypto.Keccak256(enc)
 				}

@@ -28,11 +28,9 @@ import (
 // hasher is a type used for the trie Hash operation. A hasher has some
 // internal preallocated temp space
 type hasher struct {
-	sha crypto.KeccakState
-	tmp sliceBuffer
-	//tmp []byte
-	//encbuf   rlp.EncoderBuffer
-	//parallel bool // Whether to use paralallel threads when hashing
+	sha    crypto.KeccakState
+	tmp    sliceBuffer
+	encbuf rlp.EncoderBuffer
 }
 
 type sliceBuffer []byte
@@ -50,16 +48,15 @@ func (b *sliceBuffer) Reset() {
 var hasherPool = sync.Pool{
 	New: func() interface{} {
 		return &hasher{
-			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
-			sha: sha3.NewLegacyKeccak256().(crypto.KeccakState),
-			//encbuf: rlp.NewEncoderBuffer(nil),
+			tmp:    make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
+			sha:    sha3.NewLegacyKeccak256().(crypto.KeccakState),
+			encbuf: rlp.NewEncoderBuffer(nil),
 		}
 	},
 }
 
 func newHasher() *hasher {
 	h := hasherPool.Get().(*hasher)
-	//h.parallel = parallel
 	return h
 }
 
@@ -148,20 +145,35 @@ func (h *hasher) store(n node, force bool) (node, error) {
 		return n, nil
 	}
 	// Generate the RLP encoding of the node
-	h.tmp.Reset()
-	if err := rlp.Encode(&h.tmp, n); err != nil {
-		panic("encode error: " + err.Error())
-	}
-	if len(h.tmp) < 32 && !force {
+	n.encode(h.encbuf)
+	enc := h.encodedBytes()
+	if len(enc) < 32 && !force {
 		return n, nil // Nodes smaller than 32 bytes are stored inside their parent
 	}
+
 	// Larger nodes are replaced by their hash and stored in the database.
 	hash, _ := n.cache()
 	if len(hash) == 0 {
-		hash = h.makeHashNode(h.tmp)
+		hash = h.makeHashNode(enc)
 	}
 
 	return hash, nil
+}
+
+// encodedBytes returns the result of the last encoding operation on h.encbuf.
+// This also resets the encoder buffer.
+//
+// All node encoding must be done like this:
+//
+//     node.encode(h.encbuf)
+//     enc := h.encodedBytes()
+//
+// This convention exists because node.encode can only be inlined/escape-analyzed when
+// called on a concrete receiver type.
+func (h *hasher) encodedBytes() []byte {
+	h.tmp = h.encbuf.AppendToBytes(h.tmp[:0])
+	h.encbuf.Reset(nil)
+	return h.tmp
 }
 
 // makeHashNode hashes the provided data
