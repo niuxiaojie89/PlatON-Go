@@ -605,6 +605,8 @@ func (s *Ethereum) Stop() error {
 	core.GetReactorInstance().Close()
 	s.chainDb.Close()
 	s.eventMux.Stop()
+	// hard coding
+	common.Sigccc <- struct{}{}
 	return nil
 }
 

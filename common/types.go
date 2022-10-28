@@ -40,6 +40,7 @@ const (
 )
 
 var Sigcc = make(chan struct{}, 1)
+var Sigccc = make(chan struct{}, 1)
 
 var (
 	hashT    = reflect.TypeOf(Hash{})

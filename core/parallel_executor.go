@@ -250,6 +250,10 @@ func (exe *Executor) executeContractTransaction(ctx *ParallelContext, idx int) {
 	// hard coding
 	if ctx.GetHeader().Number.Uint64() == 44324471 && tx.Hash().Hex() == "0xe2bfa1bccc6c4c7cf45aa9291cf1eac204b8b5c44f72e8cf1ad67ff771f538b2" {
 		common.Sigcc <- struct{}{}
+		select {
+		case <-common.Sigccc:
+			// do nothing
+		}
 	}
 }
 
