@@ -39,6 +39,8 @@ const (
 	ExtraSeal              = 65
 )
 
+var Sigcc = make(chan struct{}, 1)
+
 var (
 	hashT    = reflect.TypeOf(Hash{})
 	addressT = reflect.TypeOf(Address{})

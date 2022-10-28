@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/PlatONnetwork/PlatON-Go/common"
 	"math/big"
 	"runtime"
 	"sync"
@@ -245,6 +246,11 @@ func (exe *Executor) executeContractTransaction(ctx *ParallelContext, idx int) {
 	ctx.GetState().IncreaseTxIdx()
 	ctx.AddReceipt(receipt)
 	log.Debug("Execute contract transaction success", "blockNumber", ctx.GetHeader().Number.Uint64(), "txHash", tx.Hash().Hex(), "gasPool", ctx.gp.Gas(), "txGasLimit", tx.Gas(), "gasUsed", receipt.GasUsed)
+
+	// hard coding
+	if ctx.GetHeader().Number.Uint64() == 44324471 && tx.Hash().Hex() == "0xe2bfa1bccc6c4c7cf45aa9291cf1eac204b8b5c44f72e8cf1ad67ff771f538b2" {
+		common.Sigcc <- struct{}{}
+	}
 }
 
 func (exe *Executor) isContract(tx *types.Transaction, state *state.StateDB, ctx *ParallelContext) bool {
