@@ -113,6 +113,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.CacheTrieRejournalFlag,
 			utils.CacheGCFlag,
 			utils.CacheTrieDBFlag,
+			utils.CachePreimagesFlag,
 		},
 	},
 	{
@@ -143,8 +144,8 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.GraphQLEnabledFlag,
 			utils.GraphQLCORSDomainFlag,
 			utils.GraphQLVirtualHostsFlag,
-			utils.RPCGlobalGasCap,
-			utils.RPCGlobalTxFeeCap,
+			utils.RPCGlobalGasCapFlag,
+			utils.RPCGlobalTxFeeCapFlag,
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
@@ -179,6 +180,7 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.GpoBlocksFlag,
 			utils.GpoPercentileFlag,
+			utils.GpoMaxGasPriceFlag,
 		},
 	},
 	{

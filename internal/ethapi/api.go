@@ -511,26 +511,6 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 	return &PublicBlockChainAPI{b}
 }
 
-// SetActor set address for mpc compute.
-//func (s *PublicBlockChainAPI) SetActor(address common.Address) error {
-//	absPath, err := filepath.Abs(core.DEFAULT_ACTOR_FILE_NAME)
-//	if err != nil {
-//		return fmt.Errorf("File not exists : %v", err.Error())
-//	}
-//	f, err := os.OpenFile(absPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
-//	if err != nil {
-//		return fmt.Errorf("open file error : %v ", err.Error())
-//	}
-//	f.Write(address.Bytes())
-//	f.Close()
-//
-//	if core.MPC_POOL != nil {
-//		core.MPC_POOL.LoadActor()
-//	}
-//
-//	return nil
-//}
-
 // ChainId is the PIP-7 replay-protection chain id for the current chain config.
 func (s *PublicBlockChainAPI) ChainId() (*hexutil.Big, error) {
 	stateDB, _, err := s.b.StateAndHeaderByNumber(context.Background(), rpc.BlockNumber(s.b.CurrentBlock().Number().Uint64()))
@@ -615,7 +595,7 @@ func (s *PublicBlockChainAPI) GetProof(ctx context.Context, address common.Addre
 			if storageError != nil {
 				return nil, storageError
 			}
-			storageProof[i] = StorageResult{key, (*hexutil.Big)(common.BytesToHash(state.GetState(address, common.FromHex(key))).Big()), common.ToHexArray(proof)}
+			storageProof[i] = StorageResult{key, (*hexutil.Big)(common.BytesToHash(state.GetState(address, common.FromHex(key))).Big()), toHexSlice(proof)}
 		} else {
 			storageProof[i] = StorageResult{key, &hexutil.Big{}, []string{}}
 		}
@@ -629,13 +609,22 @@ func (s *PublicBlockChainAPI) GetProof(ctx context.Context, address common.Addre
 
 	return &AccountResult{
 		Address:      address,
-		AccountProof: common.ToHexArray(accountProof),
+		AccountProof: toHexSlice(accountProof),
 		Balance:      (*hexutil.Big)(state.GetBalance(address)),
 		CodeHash:     codeHash,
 		Nonce:        hexutil.Uint64(state.GetNonce(address)),
 		StorageHash:  storageHash,
 		StorageProof: storageProof,
 	}, state.Error()
+}
+
+// toHexSlice creates a slice of hex-strings based on []byte.
+func toHexSlice(b [][]byte) []string {
+	r := make([]string, len(b))
+	for i := range b {
+		r[i] = hexutil.Encode(b[i])
+	}
+	return r
 }
 
 // GetHeaderByNumber returns the requested canonical block header.
@@ -911,6 +900,9 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 		block, err := b.BlockByNumberOrHash(ctx, blockNrOrHash)
 		if err != nil {
 			return 0, err
+		}
+		if block == nil {
+			return 0, errors.New("block not found")
 		}
 		hi = block.GasLimit()
 	}

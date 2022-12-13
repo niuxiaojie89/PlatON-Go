@@ -33,6 +33,7 @@ import (
 var DefaultFullGPOConfig = gasprice.Config{
 	Blocks:     20,
 	Percentile: 60,
+	MaxPrice:   gasprice.DefaultMaxPrice,
 }
 
 // DefaultConfig contains default settings for use on the Ethereum main net.
@@ -121,6 +122,7 @@ type Config struct {
 	TrieCache    int
 	TrieTimeout  time.Duration
 	TrieDBCache  int
+	Preimages    bool
 	DBDisabledGC bool
 	DBGCInterval uint64
 	DBGCTimeout  time.Duration

@@ -39,6 +39,8 @@ type Config struct {
 	// may be left uninitialised and will be set to the default table.
 	JumpTable [256]*operation
 
+	ExtraEips []int // Additional EIPS that are to be enabled
+
 	ConsoleOutput bool
 
 	// The actual implementation type of the wasm instance
@@ -129,7 +131,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			// shutdown vm, change th vm.abort mark
 			in.evm.Cancel()
 		}
-	}(in.evm.Ctx)
+	}(in.evm.Context.Ctx)
 
 	// Increment the call depth which is restricted to 1024
 	in.evm.depth++
